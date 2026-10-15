@@ -184,6 +184,7 @@ ${ body }
 				<ul>
 					${ PROJECTS.filter( ( p ) => p.name !== SITE.name ).map( ( p ) => `<li><a href="${ p.url }" title="${ esc( p.text ) }">${ esc( p.name ) }</a></li>` ).join( '' ) }
 					<li><a href="${ SITE.authorUrl }#projects">All projects</a></li>
+					<li><a href="https://george-stathopoulos.github.io/blog/" title="The story behind every project">Blog</a></li>
 				</ul>
 			</div>
 			<div>
