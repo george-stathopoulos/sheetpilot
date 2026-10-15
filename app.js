@@ -251,7 +251,7 @@ function discoverLogic(s) {
         if (B === A || B === Yi) continue;
         for (const m of mults) {
           const t = test(Yi, k => V[B][k] ? V[A][k] / V[B][k] * m : null, m === 100 ? round : y => Math.max(.006 * Math.abs(y), .011));
-          if (t.good) { mk('ratio', `${cols[Yi].name} = ${cols[A].name} ÷ ${cols[B].name}${m === 100 ? ' × 100' : ''}`, t); found = true; break; }
+          if (t.good) { mk('ratio', `${cols[Yi].name} = ${cols[A].name} ÷ ${cols[B].name}${m === 100 ? ' × 100' : ''}`, t, { involved: [cols[Yi].name, cols[A].name, cols[B].name] }); found = true; break; }
         }
         if (found) break;
       }
@@ -262,13 +262,18 @@ function discoverLogic(s) {
         if (B <= A || B === Yi || !nonConst(B)) continue;
         for (const [sym, fn] of [['×', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] * V[B][k]], ['−', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] - V[B][k]], ['+', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] + V[B][k]]]) {
           const t = test(Yi, fn, exact);
-          if (t.good) { mk('calc', `${cols[Yi].name} = ${cols[A].name} ${sym} ${cols[B].name}`, t); found = true; break; }
+          if (t.good) { mk('calc', `${cols[Yi].name} = ${cols[A].name} ${sym} ${cols[B].name}`, t, { involved: [cols[Yi].name, cols[A].name, cols[B].name] }); found = true; break; }
         }
         if (found) break;
       }
     }
   }
-  return rules;
+  // a × b = c also shows up as c ÷ b = a and c ÷ a = b: keep one rule per set of columns, preferring the product
+  const seen = new Set();
+  return rules.sort((a, b) => (a.kind === 'ratio') - (b.kind === 'ratio')).filter(r => {
+    if (!r.involved) return true;
+    const key = r.involved.slice().sort().join('|'); if (seen.has(key)) return false; seen.add(key); return true;
+  }).sort((a, b) => cols.findIndex(c => c.name === a.col) - cols.findIndex(c => c.name === b.col));
 }
 const colLetter = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
 const letterIdx = L => L.split('').reduce((t, ch) => t * 26 + ch.charCodeAt(0) - 64, 0) - 1;
@@ -902,13 +907,51 @@ $('#goImport').addEventListener('click', async () => {
   } catch (err) { $('#importMsg').textContent = err.message; }
 });
 const off = n => addDays(todayISO(), n);
+
+// Generated sample sheets (fixed seed, so the demo and the docs always show the same data)
+const rng = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
+const pick = (r, a) => a[Math.floor(r() * a.length)];
+const dayStr = (y, m, d, add) => addDays(`${y}-${pad(m)}-${pad(d)}`, add);
+function sampleTickets() {
+  const r = rng(11), agents = ['Maya Chen', 'Luis Ortega', 'Priya Nair', 'Tom Becker', 'Aisha Khan', 'Jonas Weber', 'Elena Rossi', 'Sam Okafor'];
+  const prio = { Low: [30, 40], Medium: [16, 26], High: [8, 14], Critical: [3, 6] }, rows = ['Ticket ID,Created,Channel,Category,Priority,Agent,Resolution time (hours),SLA met,Customer satisfaction'];
+  for (let i = 0; i < 320; i++) {
+    const p = pick(r, ['Low', 'Low', 'Medium', 'Medium', 'Medium', 'High', 'High', 'Critical']), [lo, hi] = prio[p], agent = pick(r, agents);
+    const slow = agent === 'Tom Becker' ? 1.5 : agent === 'Aisha Khan' ? .75 : 1, hrs = Math.max(.5, (lo + r() * (hi - lo)) * slow * (1 + (r() - .5) * .5)).toFixed(1);
+    const met = hrs < { Low: 48, Medium: 30, High: 16, Critical: 8 }[p] ? 'TRUE' : 'FALSE', csat = Math.max(1, Math.min(5, Math.round(5.2 - hrs / 22 + (r() - .5) * 2)));
+    rows.push([`TKT-${1001 + i}`, dayStr(2026, 4, 1, Math.floor(i * 180 / 320 + r() * 3)), pick(r, ['Email', 'Email', 'Live chat', 'Live chat', 'Phone', 'Social']), pick(r, ['Billing', 'Technical', 'Technical', 'Account', 'Shipping', 'Product']), p, agent, hrs, met, csat].join(','));
+  }
+  return rows.join('\n');
+}
+function sampleSales() {
+  const r = rng(23), reps = ['Alice Moreau', 'Ben Hartley', 'Carla Díaz', 'Dmitri Volkov', 'Emma Larsen', 'Farid Nasser', 'Grace Liu', 'Hugo Martin'];
+  const lines = { 'Smart Lamp': 49, 'Desk Pro': 199, 'Air Filter': 89, 'Sound Bar': 149, 'Charging Dock': 39 }, rows = ['Order ID,Order date,Region,Product line,Sales rep,Units,Unit price,Revenue,Discount %'];
+  for (let i = 0; i < 420; i++) {
+    const region = pick(r, ['North', 'North', 'South', 'East', 'East', 'West', 'Online', 'Online', 'Online']), line = pick(r, Object.keys(lines));
+    const units = 1 + Math.floor(r() * (line === 'Desk Pro' ? 6 : 12)) + (region === 'Online' ? 0 : 2), price = lines[line];
+    rows.push([`SO-${20001 + i}`, dayStr(2025, 10, 1, Math.floor(i * 330 / 420 + r() * 2)), region, line, pick(r, reps), units, price, units * price, `${Math.round(r() * 3) * 5}%`].join(','));
+  }
+  return rows.join('\n');
+}
+function sampleReviews() {
+  const r = rng(5), crit = ['Communication', 'Quality of work', 'Reliability', 'Teamwork', 'Initiative', 'Customer focus'];
+  const people = ['Anna Lopez', 'Ben Carter', 'Chloe Nguyen', 'Dev Patel', 'Eva Rossi', 'Femi Adeyemi', 'Gus Berg', 'Hana Kim', 'Ivan Petrov', 'Julia Costa'];
+  const rows = [`Employee,Reviewed on,${crit.join(',')},Total,Max,Score %`];
+  for (let i = 0; i < 60; i++) {
+    const bias = (i % people.length) / people.length * 1.2 - .4, v = crit.map((c, j) => Math.max(1, Math.min(5, Math.round(3.6 + bias + (j === 4 ? -.5 : 0) + (r() - .5) * 2.2)))), tot = v.reduce((a, b) => a + b, 0);
+    rows.push([people[i % people.length], dayStr(2026, 1, 12, Math.floor(i * 9 / 2)), ...v, tot, 30, `${Math.round(tot / 30 * 100)}%`].join(','));
+  }
+  return rows.join('\n');
+}
+const SAMPLE_NAMES = { customers: 'Sample customers', salaries: 'Sample salaries', tickets: 'Support tickets (sample)', sales: 'Sales orders (sample)', reviews: 'Performance reviews (sample)' };
 const SAMPLES = {
+  tickets: sampleTickets, sales: sampleSales, reviews: sampleReviews,
   customers: () => ['Name,Email,Status,Quote value,Quote sent,Next follow-up,Last contacted', `Acme Roofing,sam@acme.example,Quote sent,"$4,200",${off(-6)},${off(-3)},${off(-6)}`, `Bright Cafe,hello@bright.example,Lead,"$1,500",,${off(0)},${off(-2)}`, `Cole & Sons,cole@sons.example,Negotiating,"$12,000",${off(-12)},${off(5)},${off(-12)}`, `Dune Studio,team@dune.example,Won,"$7,800",${off(-30)},${off(-20)},${off(-20)}`, `Evergreen Ltd,ops@evergreen.example,Quote sent,"$3,100",${off(-9)},${off(-1)},${off(-40)}`, `Fjord Design,hi@fjord.example,Lost,"$2,000",${off(-25)},${off(-15)},${off(-15)}`, `Gamma Plumbing,gp@gamma.example,Lead,$900,,${off(9)},${off(-1)}`].join('\n'),
   salaries: () => ['Employee,Department,Role,Salary,Status,Hire date,Next review,Contract end', `Anna Lopez,Engineering,Developer,"72,000",Active,2021-03-01,${off(-10)},`, `Ben Carter,Sales,Account Exec,"58,500",Active,2022-06-15,${off(12)},`, `Chloe Nguyen,Engineering,Lead,"95,000",Active,2019-01-10,${off(0)},`, `Dev Patel,Support,Agent,"41,000",On review,2023-02-20,${off(-4)},${off(25)}`, `Eva Rossi,Marketing,Manager,"67,000",Active,2020-09-01,${off(40)},`, `Femi Adeyemi,Sales,Intern,"24,000",Active,2024-05-01,${off(30)},${off(20)}`, `Gus Berg,Support,Agent,"39,500",Left,2021-11-11,,`].join('\n')
 };
 dlg.addEventListener('click', e => {
   const k = e.target.dataset?.sample; if (!k) return;
-  if (addSheet(k === 'customers' ? 'Sample customers' : 'Sample salaries', parseTable(SAMPLES[k]()))) { ui = freshUI(); save(); render(); dlg.close(); }
+  if (addSheet(SAMPLE_NAMES[k], parseTable(SAMPLES[k]()))) { ui = freshUI(); save(); render(); dlg.close(); }
 });
 
 // opening a share link

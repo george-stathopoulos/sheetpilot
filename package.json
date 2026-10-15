@@ -1,0 +1,16 @@
+{
+  "name": "sheetpilot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SheetPilot: turn any spreadsheet into an interactive dashboard, in your browser.",
+  "license": "GPL-2.0-or-later",
+  "type": "module",
+  "scripts": {
+    "site": "node website/build.mjs",
+    "screenshots": "node dev/screenshots.mjs"
+  },
+  "devDependencies": {
+    "markdown-it": "^14.3.2",
+    "playwright-core": "^1.48.0"
+  }
+}
