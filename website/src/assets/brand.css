@@ -1,0 +1,59 @@
+/* SheetPilot brand: spreadsheet green and white. Overrides the shared tokens from site.css so the
+   header, footer and help center follow the same palette. */
+:root, :root[data-theme="light"] {
+	--bg: #f6faf7;
+	--bg-2: #ecf4ee;
+	--surface: #ffffff;
+	--ink: #13231a;
+	--ink-2: #32483b;
+	--muted: #64796c;
+	--line: #d9e5dd;
+	--line-2: #c5d6cb;
+	--accent: #107c41;
+	--accent-hover: #0c6334;
+	--accent-ink: #ffffff;
+	--accent-soft: rgba(16, 124, 65, 0.09);
+	--accent-line: rgba(16, 124, 65, 0.32);
+	--good: #0b6b37;
+	--good-soft: rgba(16, 124, 65, 0.1);
+	--code: #edf4ef;
+	--shadow: 0 1px 2px rgba(19, 35, 26, 0.05), 0 12px 32px -18px rgba(19, 35, 26, 0.28);
+	--shadow-lg: 0 2px 4px rgba(19, 35, 26, 0.04), 0 40px 80px -34px rgba(16, 124, 65, 0.5);
+	--radius: 8px;
+	--hero: linear-gradient(135deg, #1a9a55 0%, #0f6b38 60%, #0a4f29 100%);
+	--grid: rgba(16, 124, 65, 0.09);
+	--cell-yellow: #fff3b0;
+	--mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+	color-scheme: light;
+}
+:root[data-theme="dark"] {
+	--bg: #0b130e;
+	--bg-2: #101c15;
+	--surface: #14221a;
+	--ink: #e8f3ec;
+	--ink-2: #bcd0c3;
+	--muted: #8aa394;
+	--line: #223329;
+	--line-2: #2f453a;
+	--accent: #3ddc84;
+	--accent-hover: #63e79d;
+	--accent-ink: #06210f;
+	--accent-soft: rgba(61, 220, 132, 0.12);
+	--accent-line: rgba(61, 220, 132, 0.35);
+	--good: #55e08f;
+	--good-soft: rgba(61, 220, 132, 0.14);
+	--code: #17271d;
+	--shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px -18px rgba(0, 0, 0, 0.7);
+	--shadow-lg: 0 2px 4px rgba(0, 0, 0, 0.4), 0 40px 80px -30px rgba(0, 0, 0, 0.9);
+	--grid: rgba(61, 220, 132, 0.07);
+	--cell-yellow: #4a4210;
+	color-scheme: dark;
+}
+:root[data-theme="dark"] .site-head { background: color-mix(in srgb, var(--bg) 88%, transparent); }
+
+/* The header gets a spreadsheet "ribbon": a green rule on top and tab-like links. */
+.site-head { border-top: 3px solid var(--accent); }
+.nav a { border-radius: 6px 6px 0 0; }
+.nav a[aria-current="page"], .nav a:hover { box-shadow: inset 0 -2px 0 var(--accent); }
+.btn { border-radius: 6px; }
+.brand--logo .logo-text b { color: var(--accent); font-weight: inherit; }

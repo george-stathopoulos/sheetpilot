@@ -4,9 +4,9 @@
 
 No. SheetPilot runs in your browser and reads your file on your device. See [Privacy and security](privacy-and-security.md).
 
-## What can I open?
+## What can I open, and what works best?
 
-CSV, tab or semicolon separated text, Excel files (.xlsx and .xls, every tab), and cells pasted from Excel or Google Sheets. See [Messy sheets and supported files](messy-sheets.md).
+Excel files (.xlsx and .xls, every tab), CSV or other delimited text, and cells pasted from Excel or Google Sheets. **Excel is best:** it keeps formulas, tabs and dates, which CSV loses. See [Messy sheets and supported files](messy-sheets.md).
 
 ## Can it connect to Google Sheets and stay in sync?
 

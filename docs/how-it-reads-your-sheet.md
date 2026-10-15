@@ -43,6 +43,8 @@ SheetPilot also works out how columns are calculated from each other.
 - With an **Excel file**, it shows your real formulas in plain words, using column names instead of cell references: `=SUM([Quality of work]:[Customer focus])`.
 - With a **CSV** (which keeps values but not formulas), it infers rules from the numbers: sums, products, ratios and copies. For example *Revenue = Units × Unit price*, with a note of whether it holds in every row.
 
+> **For the best results, upload the Excel (.xlsx) file.** Inference can only guess; the real formulas are exact, and they also explain special cases such as "N/A counts as 5".
+
 ![The "How this sheet works" section](images/logic.png)
 
 Rows that break a rule are listed, so you can spot typos and mistakes. Columns that are the sum of a set of columns, such as scores, drive the **heatmap**.

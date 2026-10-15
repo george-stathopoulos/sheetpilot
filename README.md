@@ -12,7 +12,7 @@
 - **Finds the logic:** shows your real Excel formulas in plain words, or infers sums, products and ratios from the values, and flags rows that break them.
 - **Chooses sensibly, and says so:** the main number, total or average, which direction is good, what to compare and the timeline. A "How I read your sheet" box lets you correct any choice, and corrections are remembered.
 - **Writes findings in plain language,** including when nothing stands out, plus data checks.
-- **Ten styles:** Clean, Midnight, Corporate, Forest, Sunset, Ocean, Violet, Mono, Rose and Paper.
+- **Fourteen templates,** professional ones first (Executive, Graphite, Slate, Analyst, Sheet, Boardroom, Minimal) and expressive ones after (Editorial, Midnight, Soft, Blueprint, Notebook, Playful, Terminal), plus your choice of font and accent colour.
 - **Export** a self-contained web page, a PDF or the filtered rows as CSV, choosing which sections to include.
 - **Share** a view-only snapshot or an interactive copy as a link. There is no server; the link carries the data.
 - **Reminders:** optional, from date columns, for sheets that track follow-ups or reviews.

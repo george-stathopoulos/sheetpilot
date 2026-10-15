@@ -5,7 +5,9 @@ SheetPilot turns a spreadsheet into an interactive dashboard in your browser. Th
 ## Open your first sheet
 
 1. Open SheetPilot and click **Import sheet**.
-2. Choose a file (CSV or Excel), or paste cells copied from Excel or Google Sheets. No file to hand? Click one of the samples: **Tickets**, **Sales**, **Reviews**, **Customers** or **Salaries**.
+2. Choose a file, or paste cells copied from Excel or Google Sheets. No file to hand? Click one of the samples: **Tickets**, **Sales**, **Reviews**, **Customers** or **Salaries**.
+
+> **For the best results, upload the Excel (.xlsx) file rather than a CSV.** An Excel file keeps your real formulas, every tab and proper dates, so SheetPilot can show how the numbers are calculated and check them. A CSV has only the final values, so formulas have to be guessed. From Google Sheets: **File → Download → Microsoft Excel (.xlsx)**.
 3. Click **Import**.
 
 ![The import dialog](images/import-dialog.png)
@@ -26,7 +28,7 @@ You land on the **Dashboard** tab, with a short box at the top: *How I read your
 
 | Tab | What it is for |
 |---|---|
-| **Dashboard** | The overview. Pick a style, filter, compare, export and share. |
+| **Dashboard** | The overview. Filter, compare, restyle (palette icon), export and share. |
 | **Reminders** | Dates that need attention, if your sheet has follow-up or review dates. See [Reminders and the table](reminders-and-table.md). |
 | **Table** | Your rows, editable, with search and sorting. |
 | **Setup** | Change how the sheet is read, and the type of each column. |

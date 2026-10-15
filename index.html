@@ -13,6 +13,7 @@
   <div class="brand">Sheet<b>Pilot</b></div>
   <select id="wsSelect" title="Switch sheet"></select>
   <div class="spacer"></div>
+  <button id="btnStyle" class="icon-btn" title="Template, font and colour" aria-label="Style: template, font and colour"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18c1.1 0 1.8-.8 1.8-1.7 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.7 1.8-1.7H17a4 4 0 0 0 4-4c0-4.4-4.5-8-9-8z"/><circle cx="7.5" cy="11" r="1.1"/><circle cx="10.5" cy="7" r="1.1"/><circle cx="15.5" cy="7.5" r="1.1"/></svg></button>
   <button id="btnImport" class="primary">Import sheet</button>
   <button id="btnOut">Export…</button>
   <button id="btnShare">Share…</button>
@@ -26,11 +27,13 @@
 <div id="viewer" hidden></div>
 
 <aside id="drawer" class="drawer" hidden></aside>
+<div id="stylePanel" class="popover" hidden></div>
 
 <dialog id="importDlg">
   <form method="dialog" class="dlg">
     <h2>Import a sheet</h2>
-    <p class="muted">Upload a CSV or Excel file, paste cells copied from Excel or Google Sheets, or start with a sample. Your data stays in this browser.</p>
+    <p class="muted">Upload an Excel or CSV file, paste cells copied from Excel or Google Sheets, or start with a sample. Your data stays in this browser.</p>
+    <p class="tip"><b>For the best results, upload the Excel (.xlsx) file.</b> It keeps your formulas, every tab and real dates, so SheetPilot can show how the numbers are calculated. A CSV has only the values. From Google Sheets: File → Download → Microsoft Excel (.xlsx).</p>
     <input type="file" id="fileIn" accept=".csv,.tsv,.txt,.xlsx,.xls">
     <textarea id="pasteIn" rows="6" placeholder="…or paste cells here (first row = column names)"></textarea>
     <input type="text" id="nameIn" placeholder="Name for this sheet (optional)">

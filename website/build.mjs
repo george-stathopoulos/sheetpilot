@@ -98,15 +98,15 @@ const I = {
 const NAV = [
 	{ id: 'how', label: 'How it works', href: 'index.html#how' },
 	{ id: 'features', label: 'Features', href: 'index.html#features' },
-	{ id: 'privacy', label: 'Privacy', href: 'index.html#privacy' },
+	{ id: 'templates', label: 'Templates', href: 'index.html#templates' },
 	{ id: 'app', label: 'Open the app', href: 'app/' },
 	{ id: 'docs', label: 'Help center', href: 'docs/' },
 ];
 
 // The logo: a paper plane flying over rising bars (same artwork as favicon.svg).
-const LOGO_ICON = readFileSync( join( SRC, 'assets/favicon.svg' ), 'utf8' ).replace( '<svg ', '<svg class="logo-mark" width="30" height="30" aria-hidden="true" ' ).replace( 'id="g"', 'id="lg"' ).replace( 'url(#g)', 'url(#lg)' );
-function logo() {
-	return `${ LOGO_ICON }<span class="logo-text">Sheet<b>Pilot</b></span>`;
+const LOGO_RAW = readFileSync( join( SRC, 'assets/favicon.svg' ), 'utf8' ).replace( '<svg ', '<svg class="logo-mark" width="30" height="30" aria-hidden="true" ' );
+function logo( n = 1 ) {
+	return `${ LOGO_RAW.replace( /spg/g, 'spg' + n ).replace( /spc/g, 'spc' + n ) }<span class="logo-text">Sheet<b>Pilot</b></span>`;
 }
 
 function layout( { title, description, root, current = '', body, canonical = '', extraHead = '', home = false } ) {
@@ -119,7 +119,7 @@ function layout( { title, description, root, current = '', body, canonical = '',
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>${ esc( full ) }</title>
 <meta name="description" content="${ esc( description ) }">
-<meta name="theme-color" content="#4a3aa7">
+<meta name="theme-color" content="#107c41">
 <link rel="canonical" href="${ SITE.url }${ canonical }">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="${ SITE.name }">
@@ -131,8 +131,9 @@ function layout( { title, description, root, current = '', body, canonical = '',
 <link rel="icon" href="${ root }assets/favicon.svg" type="image/svg+xml">
 <!-- Cloudflare Web Analytics: counts visits anonymously, no cookies --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "64332b427a604e879f82853393ebdb0d"}'></script><!-- End Cloudflare Web Analytics -->
 <link rel="stylesheet" href="${ root }assets/site.css?v=${ ASSET_V }">
+<link rel="stylesheet" href="${ root }assets/brand.css?v=${ ASSET_V }">
 <link rel="stylesheet" href="${ root }assets/home.css?v=${ ASSET_V }">
-<script>try{localStorage.removeItem('hdh-site-theme');var t=sessionStorage.getItem('hdh-site-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}</script>
+<script>try{localStorage.removeItem('hdh-site-theme');var t=sessionStorage.getItem('hdh-site-theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}</script>
 ${ extraHead }
 </head>
 <body data-root="${ root }"${ home ? ' class="is-home"' : '' }>
@@ -157,7 +158,7 @@ ${ body }
 	<div class="wrap">
 		<div class="foot-grid">
 			<div class="foot-about">
-				<a class="brand brand--logo" href="${ root || './' }" aria-label="SheetPilot home">${ logo().replace( 'id="lg"', 'id="lg2"' ).replace( 'url(#lg)', 'url(#lg2)' ) }</a>
+				<a class="brand brand--logo" href="${ root || './' }" aria-label="SheetPilot home">${ logo( 2 ) }</a>
 				<p>Turn any spreadsheet into an interactive dashboard, in your browser. It works out what's in your sheet and tells you what stands out. Free and open source.</p>
 			</div>
 			<div>
@@ -224,7 +225,7 @@ const ORDER = GROUPS.flatMap( ( g ) => g.pages );
 const BLURB = {
 	'getting-started': 'Import a sheet and find your way around the dashboard.',
 	'how-it-reads-your-sheet': 'The choices SheetPilot makes, the formulas it finds, and how to change them.',
-	'the-dashboard': 'Sections, filters, comparisons, and the ten styles.',
+	'the-dashboard': 'Sections, filters, comparisons, and the fourteen templates.',
 	'export-and-share': 'Export a web page, PDF or CSV, and share a link.',
 	'reminders-and-table': 'Date reminders, editing rows, and notes.',
 	'messy-sheets': 'Supported files, awkward headers and dates, side-by-side tables, and limits.',
@@ -380,12 +381,24 @@ ${ toc.length > 1 ? `<nav class="on-page" aria-label="On this page" data-spy><h2
 
 /* ------------------------------------------------------------------ Home */
 
+// The scrolling strip of templates: every item twice, so the loop is seamless.
+const STRIP = [
+	[ 'dashboard', 'Executive', 'the default' ], [ 'theme-graphite', 'Graphite', 'neutral, formal' ], [ 'theme-slate', 'Slate', 'calm dark mode' ], [ 'theme-analyst', 'Analyst', 'compact, navy' ],
+	[ 'theme-sheet', 'Sheet', 'green with grid lines' ], [ 'theme-boardroom', 'Boardroom', 'navy, serif headings' ], [ 'theme-minimal', 'Minimal', 'hairlines, light type' ],
+	[ 'theme-editorial', 'Editorial', 'serif, double rules' ], [ 'theme-midnight', 'Midnight', 'dark, soft glow' ], [ 'theme-soft', 'Soft', 'frosted, pastel' ],
+	[ 'theme-blueprint', 'Blueprint', 'dashed, graph paper' ], [ 'theme-notebook', 'Notebook', 'dotted, ruled paper' ], [ 'theme-playful', 'Playful', 'thick outlines' ], [ 'theme-terminal', 'Terminal', 'green on black' ],
+];
+const strip = () => [ ...STRIP, ...STRIP ].map( ( [ n, t, d ], i ) => `<figure${ i >= STRIP.length ? ' aria-hidden="true"' : '' }>${ img( n, i >= STRIP.length ? '' : `The ${ t } template`, '' ) }<figcaption>${ t } <small>· ${ d }</small></figcaption></figure>` ).join( '' );
+
+
 {
 	const body = readFileSync( join( SRC, 'home.html' ), 'utf8' )
 		.replace( /\{\{shot:([a-z0-9-]+)\|([^}]+)\}\}/g, ( m, name, caption ) => `<figure class="shot reveal" data-zoom>${ img( name, caption, '' ) }<figcaption>${ caption }</figcaption></figure>` )
+		.replace( /\{\{img:([a-z0-9-]+)\|([^}]+)\}\}/g, ( m, name, alt ) => img( name, alt, '' ) )
+		.replace( /\{\{strip\}\}/g, () => strip() )
 		.replace( /\{\{repo\}\}/g, SITE.repo )
 		.replace( /\{\{version\}\}/g, VERSION );
-	write( 'index.html', layout( { title: SITE.name, description: 'SheetPilot turns any CSV or Excel file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.', root: '', current: '', body, home: true } ) );
+	write( 'index.html', layout( { title: SITE.name, description: 'SheetPilot turns any Excel or CSV file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.', root: '', current: '', body, home: true } ) );
 }
 
 /* ------------------------------------------------------------------ 404, sitemap, robots */

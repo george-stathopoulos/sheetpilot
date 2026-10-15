@@ -6,10 +6,10 @@ Real spreadsheets are rarely tidy. SheetPilot is built to cope with the common p
 
 | You have | What happens |
 |---|---|
-| A **CSV** file, or tab or semicolon separated text | Read directly. The separator is detected for you. |
-| An **Excel** file (.xlsx, .xls) | Every tab is read. Real formulas are shown. Tabs that only contain formulas and no data (empty monthly templates) are skipped, with a note. |
+| An **Excel** file (.xlsx, .xls) — **recommended** | Every tab is read, dates stay dates, and your real formulas are shown in plain words. Tabs that only contain formulas and no data (empty monthly templates) are skipped, with a note. |
+| A **CSV** file, or tab or semicolon separated text | Read directly, and the separator is detected for you. A CSV has only values, so formulas are inferred from the numbers instead. |
 | **Cells copied** from Excel or Google Sheets | Paste them into the import dialog. |
-| **Google Sheets** | Download as CSV or Excel, or copy the cells. There is no live connection. |
+| **Google Sheets** | Download as **Excel (.xlsx)** for the best results (File → Download), or copy the cells. There is no live connection. |
 
 The Excel reader is loaded from a CDN the first time you import an Excel file, so that needs an internet connection. CSV works offline.
 

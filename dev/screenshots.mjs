@@ -26,7 +26,7 @@ const BASE = `http://127.0.0.1:${ server.address().port }/`;
 
 const browser = await chromium.launch( { channel: 'chrome' } );
 
-async function open( sample, { theme = 'clean', width = 1440, height = 900, reviewed = true } = {} ) {
+async function open( sample, { theme = 'executive', width = 1440, height = 900, reviewed = true } = {} ) {
 	const context = await browser.newContext( { viewport: { width, height }, deviceScaleFactor: 2, locale: 'en-US', colorScheme: 'light', permissions: [ 'clipboard-read', 'clipboard-write' ] } );
 	const page = await context.newPage();
 	await page.goto( BASE );
@@ -34,7 +34,7 @@ async function open( sample, { theme = 'clean', width = 1440, height = 900, revi
 	await page.click( `[data-sample=${ sample }]` );
 	await page.waitForSelector( 'section[data-sec]' );
 	if ( reviewed ) await page.click( '[data-act=reviewed]' );
-	if ( theme !== 'clean' ) await page.click( `.chip[data-t=${ theme }]` );
+	if ( theme !== 'executive' ) { await page.click( '#btnStyle' ); await page.click( `.tpl[data-t=${ theme }]` ); await page.keyboard.press( 'Escape' ); }
 	await page.waitForTimeout( 300 );
 	return { page, context };
 }
@@ -47,6 +47,7 @@ const done = ( name ) => console.log( 'wrote', name );
 	await shot( page, 'read-your-sheet', '.review' ); done( 'read-your-sheet' );
 	await page.click( '[data-act=reviewed]' ); await page.waitForTimeout( 200 );
 	await shot( page, 'dashboard' ); done( 'dashboard' );
+	await page.click( '#btnStyle' ); await page.waitForTimeout( 250 ); await shot( page, 'style-panel' ); done( 'style-panel' ); await page.keyboard.press( 'Escape' );
 	await shot( page, 'findings', 'section[data-sec=findings]' ); done( 'findings' );
 	await shot( page, 'comparison-chart', 'section[data-sec=bars]' ); done( 'comparison-chart' );
 	await shot( page, 'trend', 'section[data-sec=trend]' ); done( 'trend' );
@@ -61,7 +62,7 @@ const done = ( name ) => console.log( 'wrote', name );
 	const snap = await context.newPage(); await snap.goto( link ); await snap.waitForTimeout( 800 ); await shot( snap, 'snapshot', null ); done( 'snapshot' );
 	await context.close();
 }
-for ( const t of [ 'corporate', 'midnight', 'sunset', 'forest' ] ) {
+for ( const t of [ 'graphite', 'slate', 'analyst', 'sheet', 'boardroom', 'minimal', 'editorial', 'midnight', 'soft', 'blueprint', 'notebook', 'playful', 'terminal' ] ) {
 	const { page, context } = await open( 'tickets', { theme: t } );
 	await shot( page, `theme-${ t }` ); done( `theme-${ t }` );
 	await context.close();
