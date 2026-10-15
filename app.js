@@ -111,7 +111,7 @@ function unpivot(raw) {
 }
 
 /* ---------- column type inference ---------- */
-const DONE_RE = /^(won|lost|closed|done|paid|complete[d]?|resolved|inactive|left|terminated|cancel+ed|archived|rejected)$/i;
+const DONE_RE = /^(won|lost|closed|done|paid|complete[d]?|resolved|inactive|left|terminated|cancel+ed|archived|rejected|resigned|churned|expired|delivered)$/i;
 function inferType(name, vals) {
   const v = vals.map(x => String(x).trim()).filter(x => x !== '');
   if (!v.length) return 'text';
@@ -180,15 +180,15 @@ function buildSheet(name, table, fx) {
     cells: Object.fromEntries(columns.map((c, i) => [c.name, c.type === 'date' ? (c.fix?.[String(r[i] ?? '').trim()] || parseDate(r[i], c.order) || (r[i] ?? '').trim()) : (r[i] ?? '').trim()]))
   }));
   const distinct = c => new Set(rows.map(r => r.cells[c.name]).filter(v => v !== '')).size;
-  const statusCol = columns.find(c => c.type === 'status' && distinct(c) >= 2)?.name || '';
+  const statusCol = columns.find(c => /status|stage|state$/i.test(c.name) && ['status', 'text'].includes(c.type) && distinct(c) >= 2 && distinct(c) <= 20)?.name || '';
   const doneStatuses = statusCol ? [...new Set(rows.map(r => r.cells[statusCol]).filter(v => DONE_RE.test(v)))].join(', ') : '';
   return {
     note: resolved.length ? `Ambiguous date${resolved.length > 1 ? 's' : ''} resolved from the neighbouring dates: ${resolved.slice(0, 3).join(', ')}.` : ambiguous ? `${ambiguous} date${ambiguous > 1 ? 's are' : ' is'} written like 05/10/2026 and could be day-first or month-first; assumed ${localeDMY ? 'day-first' : 'month-first'}. Check in the Table tab.` : '',
     id: uid(), name, columns, rows, statusCol, doneStatuses, fOff: fx?.off || 0,
-    titleCol: (columns.find(c => c.type === 'text' && distinct(c) > 1) || columns.find(c => c.type === 'text') || columns[0]).name,
+    titleCol: (columns.filter(c => c.type === 'text' && /name|title|task|subject|summary/i.test(c.name)).sort((a, b) => distinct(b) - distinct(a))[0] || columns.find(c => c.type === 'text' && distinct(c) > 1) || columns.find(c => c.type === 'text') || columns[0]).name,
     lastCol: columns.find(c => c.type === 'date' && /last|contact|touch/i.test(c.name))?.name || '',
     staleDays: 0,
-    watches: columns.filter(c => c.type === 'date' && /follow|due|review|renew|next|expir|deadline|remind|end/i.test(c.name)).map(c => ({ col: c.name, offset: 0 }))
+    watches: columns.filter(c => c.type === 'date' && /follow|due|review|renew|next|expir|deadline|remind|end/i.test(c.name) && !/actual|complet|resolv|done|created|hire/i.test(c.name)).map(c => ({ col: c.name, offset: 0 }))
   };
 }
 
@@ -395,8 +395,12 @@ function viewDash(s) {
 
   // trend
   if (timeC && mc) {
-    const byDay = [...groupBy(rows, timeC.name)].map(([k, rs]) => ({ l: k, v: aggregate(rs, mc.name, agg), n: rs.length })).filter(x => x.v != null).sort((a, b) => a.l < b.l ? -1 : 1);
-    if (byDay.length >= 2) h += `<h2>${esc(aggName)} over ${esc(timeC.name)}</h2><div class="card">${lineChart(byDay, fv)}</div>`;
+    const days = new Set(rows.map(r => r.cells[timeC.name]).filter(Boolean));
+    let cut = days.size > 40 ? 7 : 10; // group by month when there are many days...
+    if (cut === 7 && new Set([...days].map(d => d.slice(0, 7))).size > 48) cut = 4; // ...and by year for very long spans
+    const buckets = new Map(); rows.forEach(r => { const d = r.cells[timeC.name]; if (!d) return; const k = d.slice(0, cut); (buckets.get(k) || buckets.set(k, []).get(k)).push(r); });
+    const byDay = [...buckets].map(([k, rs]) => ({ l: k, v: aggregate(rs, mc.name, agg), n: rs.length })).filter(x => x.v != null).sort((a, b) => a.l < b.l ? -1 : 1);
+    if (byDay.length >= 2) h += `<h2>${esc(aggName)} over ${esc(timeC.name)}${cut < 10 ? ` (by ${cut === 7 ? 'month' : 'year'})` : ''}</h2><div class="card">${lineChart(byDay, fv)}</div>`;
   }
 
   // heatmap of criteria
