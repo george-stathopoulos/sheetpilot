@@ -17,18 +17,47 @@ const BRAND = 'SheetPilot';
 const HOME = 'https://george-stathopoulos.github.io/';
 const PROJECTS = [['Gatehouse', HOME + 'gatehouse/'], ['Helpdesk Hero', HOME + 'helpdesk-hero/'], ['Fixpass', HOME + 'fixpass/']];
 const THEMES = [
-  { id: 'clean', name: 'Clean', hint: 'General business, follows your light/dark setting', c: ['#f6f7f9', '#2f6bff'] },
-  { id: 'midnight', name: 'Midnight', hint: 'Tech, engineering, SaaS', c: ['#0e1117', '#58a6ff'] },
-  { id: 'corporate', name: 'Corporate', hint: 'Finance, consulting, enterprise', c: ['#eef1f5', '#1f3a68'] },
-  { id: 'forest', name: 'Forest', hint: 'Health, sustainability, agriculture', c: ['#f2f6f1', '#2e7d4f'] },
-  { id: 'sunset', name: 'Sunset', hint: 'Retail, hospitality, marketing', c: ['#fff7f0', '#e8590c'] },
-  { id: 'ocean', name: 'Ocean', hint: 'Logistics, travel, utilities', c: ['#eef7fa', '#0b7f9c'] },
-  { id: 'violet', name: 'Violet', hint: 'Agencies, creative, media', c: ['#f6f3ff', '#6d3df5'] },
-  { id: 'mono', name: 'Mono', hint: 'Legal, editorial, print-friendly', c: ['#ffffff', '#111111'] },
-  { id: 'rose', name: 'Rose', hint: 'Beauty, lifestyle, non-profit', c: ['#fff5f7', '#d6336c'] },
-  { id: 'paper', name: 'Paper', hint: 'Education, publishing, HR', c: ['#f5efe3', '#8a5a2b'] }
+  { id: 'executive', g: 'Professional', name: 'Executive', hint: 'Clean white cards, soft shadows, green accent. The default for any team' },
+  { id: 'graphite', g: 'Professional', name: 'Graphite', hint: 'Neutral greys and fine lines. Formal reports, prints well' },
+  { id: 'slate', g: 'Professional', name: 'Slate', hint: 'A calm dark mode, with no glow or gradients' },
+  { id: 'analyst', g: 'Professional', name: 'Analyst', hint: 'Compact, navy, uppercase labels. Finance, operations, BI' },
+  { id: 'sheet', g: 'Professional', name: 'Sheet', hint: 'The spreadsheet look: green, white, fine grid lines' },
+  { id: 'boardroom', g: 'Professional', name: 'Boardroom', hint: 'Navy, serif headings, accent rules. Finance, consulting' },
+  { id: 'minimal', g: 'Professional', name: 'Minimal', hint: 'Hairlines, light type, lots of white. Design, architecture, luxury' },
+  { id: 'editorial', g: 'Expressive', name: 'Editorial', hint: 'Serif type, double rules. Media, research, legal' },
+  { id: 'midnight', g: 'Expressive', name: 'Midnight', hint: 'Dark with a soft glow and gradient bars. Tech, SaaS, product' },
+  { id: 'soft', g: 'Expressive', name: 'Soft', hint: 'Frosted cards, big radii, pastel. Wellness, beauty, healthcare' },
+  { id: 'blueprint', g: 'Expressive', name: 'Blueprint', hint: 'Dashed outlines, mono type, graph paper. Engineering, IT' },
+  { id: 'notebook', g: 'Expressive', name: 'Notebook', hint: 'Dotted outlines, ruled paper, handwritten headings. Education' },
+  { id: 'playful', g: 'Expressive', name: 'Playful', hint: 'Thick outlines, hard shadows, big bars. Retail, startups' },
+  { id: 'terminal', g: 'Expressive', name: 'Terminal', hint: 'Green on black, mono, dashed. Developers, security, ops' }
 ];
-const curTheme = () => { const t = (sheet() || {}).theme || state.theme || 'clean'; return THEMES.some(x => x.id === t) ? t : 'clean'; };
+const FONTS = [
+  { id: '', name: 'Template default', stack: '' },
+  { id: 'sans', name: 'Sans', stack: '"Segoe UI","Helvetica Neue",Arial,system-ui,sans-serif' },
+  { id: 'serif', name: 'Serif', stack: 'Georgia,"Iowan Old Style","Times New Roman",serif' },
+  { id: 'mono', name: 'Mono', stack: 'ui-monospace,SFMono-Regular,Menlo,Consolas,monospace' },
+  { id: 'rounded', name: 'Rounded', stack: 'ui-rounded,"SF Pro Rounded","Nunito","Varela Round",system-ui,sans-serif' },
+  { id: 'humanist', name: 'Humanist', stack: '"Gill Sans","Gill Sans MT",Seravek,"Trebuchet MS",Calibri,sans-serif' },
+  { id: 'slab', name: 'Slab', stack: 'Rockwell,"Roboto Slab","Courier New",serif' }
+];
+const ACCENTS = ['#107c41', '#2f6bff', '#0b7f9c', '#6d3df5', '#d6336c', '#e8590c', '#8b1e1e', '#111111'];
+const curTheme = () => { const t = (sheet() || {}).theme || state.theme || 'executive'; return THEMES.some(x => x.id === t) ? t : 'executive'; };
+const curFont = () => { const f = (sheet() || {}).font ?? state.font ?? ''; return FONTS.some(x => x.id === f) ? f : ''; };
+const curAccent = () => { const a = (sheet() || {}).accent ?? state.accent ?? ''; return /^#[0-9a-f]{6}$/i.test(a) ? a : ''; };
+const onColor = hex => { const n = parseInt(hex.slice(1), 16), l = (0.299 * (n >> 16) + 0.587 * (n >> 8 & 255) + 0.114 * (n & 255)) / 255; return l > .62 ? '#111111' : '#ffffff'; };
+// sets the template, font and accent on an element (the page, or an exported document)
+function styleAttrs(theme, font, accent) {
+  return `data-theme="${esc(theme)}"${font ? ` data-font="${esc(font)}"` : ''}${accent ? ` style="--accent:${accent};--on-accent:${onColor(accent)}"` : ''}`;
+}
+function applyStyle() {
+  const r = document.documentElement, f = curFont(), a = curAccent();
+  r.dataset.theme = curTheme();
+  if (f) r.dataset.font = f; else delete r.dataset.font;
+  if (a) { r.style.setProperty('--accent', a); r.style.setProperty('--on-accent', onColor(a)); } else { r.style.removeProperty('--accent'); r.style.removeProperty('--on-accent'); }
+}
+const LOGO = '<svg class="logo-mark" viewBox="0 0 64 64" aria-hidden="true"><defs><linearGradient id="spg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2bb673"/><stop offset="1" stop-color="#0d6a39"/></linearGradient><clipPath id="spc"><rect width="64" height="64" rx="16"/></clipPath></defs><rect width="64" height="64" rx="16" fill="url(#spg)"/><g clip-path="url(#spc)" stroke="#fff" stroke-opacity=".16" stroke-width="1.6"><path d="M0 21.5h64M0 42.5h64M21.5 0v64M42.5 0v64"/></g><g fill="#fff" fill-opacity=".3"><rect x="11" y="38" width="10" height="15" rx="2.5"/><rect x="26" y="31" width="10" height="22" rx="2.5"/><rect x="41" y="23" width="10" height="30" rx="2.5"/></g><path d="M54 10 14 27l15 6 6 17z" fill="#fff"/><path d="m29 33 25-23" stroke="#0d6a39" stroke-opacity=".4" stroke-width="2" fill="none"/><path d="m29 33 6 17 4-9z" fill="#ffd54a"/></svg>';
+const brandHTML = () => `${LOGO}<span>Sheet<b>Pilot</b></span>`;
 const creditsInner = () => `<div>${esc(BRAND)} dashboards · Made by <a href="${HOME}" target="_blank" rel="noopener">George Stathopoulos</a> — CV, projects and contact at <a href="${HOME}" target="_blank" rel="noopener">george-stathopoulos.github.io</a></div><div class="sub">Projects: ${PROJECTS.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(' · ')} · Your data stays in your browser; nothing is uploaded.</div>`;
 const isNumT = t => t === 'number' || t === 'money' || t === 'percent';
 
@@ -394,8 +423,8 @@ function title(s, r) {
 const TABS = [['dash', 'Dashboard'], ['rem', 'Reminders'], ['table', 'Table'], ['setup', 'Setup']];
 function render() {
   dupCache = null;
-  document.documentElement.dataset.theme = curTheme();
-  document.title = BRAND; $('.brand').innerHTML = `<b>${esc(BRAND)}</b>`; $('#credit').innerHTML = creditsInner();
+  applyStyle();
+  document.title = BRAND; $('.brand').innerHTML = brandHTML(); $('#credit').innerHTML = creditsInner();
   document.body.classList.toggle('shared', !!shared);
   $('#sharebar').innerHTML = shared ? `<div class="sharebar"><b>Shared dashboard</b><span class="muted">You're looking at a copy; your changes aren't saved.</span><button class="primary" data-act="savecopy">Save a copy to my sheets</button><a href="${esc(location.pathname)}">Make your own dashboard</a></div>` : '';
   $('#wsSelect').innerHTML = state.sheets.map(s => `<option value="${s.id}" ${s.id === state.current ? 'selected' : ''}>${esc(s.name)}</option>`).join('') || '<option>No sheets yet</option>';
@@ -495,14 +524,12 @@ function viewDash(s) {
     <li>Each row is named by <b>${esc(s.titleCol)}</b></li>
     <li>${mc ? `Main number: <b>${esc(mc.name)}</b>, shown as ${agg === 'sum' ? 'a total' : 'an average'}; ${esc(POL[polarity].toLowerCase())}` : 'No main number found, so rows are counted'}${un('measure')}</li>
     ${dim ? `<li>Compared by: <b>${esc(dim)}</b>${un('dim')}</li>` : ''}${timeC ? `<li>Timeline: <b>${esc(timeC.name)}</b>${un('time')}</li>` : ''}</ul>
+    ${!s.fromXlsx && !s.sample && P.rules.length ? '<p class="tip"><b>Tip:</b> this came from a CSV or pasted cells, which cannot carry formulas, so the calculations above were worked out from the values. For the best results, upload the original <b>Excel (.xlsx)</b> file: it keeps your real formulas, every tab and the dates.</p>' : ''}
     <div class="row"><button class="primary" data-act="reviewed">Looks right</button><button data-tab-go="setup">Adjust…</button><span class="muted">You can change any of this later in Setup, or with the dropdowns on the charts.</span></div></div>`;
 
   // header summary
   const dates = timeC ? rows.map(r => r.cells[timeC.name]).filter(Boolean).sort() : [];
   h += sec('summary', 'Row count and date range', `<div class="summary"><b>${rows.length}${nActive ? ` of ${total}` : ''} rows</b>${dates.length ? ` · ${esc(timeC.name)}: ${esc(dates[0])} → ${esc(dates.at(-1))}` : ''}${P.constants.length ? `<div class="muted">Same on every row: ${P.constants.map(c => `${esc(c.name)} = ${esc(s.rows.find(r => r.cells[c.name] !== '')?.cells[c.name])}`).join(' · ')}</div>` : ''}</div>`);
-
-  // style picker
-  h += `<div class="themebar"><b>Style</b>${THEMES.map(t => `<button class="chip ${t.id === curTheme() ? 'on' : ''}" style="--c1:${t.c[0]};--c2:${t.c[1]}" data-act="theme" data-t="${t.id}" title="${esc(t.name)} — ${esc(t.hint)}" aria-label="${esc(t.name)}"><i></i><i></i></button>`).join('')}<span class="muted">${esc(THEMES.find(t => t.id === curTheme()).name)} · ${esc(THEMES.find(t => t.id === curTheme()).hint)}</span></div>`;
 
   // filters
   const fcols = [...P.dims, ...P.bools.map(c => c.name)].slice(0, 6);
@@ -720,7 +747,11 @@ document.addEventListener('click', e => {
     case 'close': ui.drawer = null; renderDrawer(); break;
     case 'fdim': { const c = a.dataset.c, v = a.dataset.v; if (ui.f[c] === v) delete ui.f[c]; else ui.f[c] = v; render(); break; }
     case 'clearf': ui.f = {}; render(); break;
-    case 'theme': { const t = a.dataset.t; if (THEMES.some(x => x.id === t)) { s.theme = t; state.theme = t; save(); render(); } break; }
+    case 'theme': { const t = a.dataset.t; if (THEMES.some(x => x.id === t)) { if (s) s.theme = t; state.theme = t; save(); render(); renderStylePanel(true); } break; }
+    case 'font': { const f = a.dataset.f ?? ''; if (FONTS.some(x => x.id === f)) { if (s) s.font = f; state.font = f; save(); render(); renderStylePanel(true); } break; }
+    case 'accent': { const c = a.dataset.c || ''; if (!c || /^#[0-9a-f]{6}$/i.test(c)) { if (s) s.accent = c; state.accent = c; save(); render(); renderStylePanel(true); } break; }
+    case 'resetstyle': { if (s) { s.theme = 'executive'; s.font = ''; s.accent = ''; } state.theme = 'executive'; state.font = ''; state.accent = ''; save(); render(); renderStylePanel(true); break; }
+    case 'closestyle': $('#stylePanel').hidden = true; break;
     case 'savecopy': { const copy = shared; shared = null; state.sheets.push(copy); state.current = copy.id; ui = freshUI(); history.replaceState(null, '', location.pathname); save(); render(); break; }
     case 'resetroles': delete s.roles; save(); render(); break;
     case 'reviewed': s.reviewed = true; save(); render(); break;
@@ -759,6 +790,26 @@ document.addEventListener('change', e => {
 });
 $('#wsSelect').addEventListener('change', e => { state.current = e.target.value; ui = freshUI(); save(); render(); });
 $('#btnDelete').addEventListener('click', () => { const s = sheet(); if (s && confirm(`Delete "${s.name}"? This cannot be undone.`)) { state.sheets = state.sheets.filter(x => x !== s); state.current = state.sheets[0]?.id || null; ui = freshUI(); save(); render(); } });
+
+/* ---------- style panel (palette icon in the top bar) ---------- */
+function renderStylePanel(keepOpen) {
+  const el = $('#stylePanel'); if (!el) return;
+  if (!keepOpen) el.hidden = !el.hidden; if (el.hidden) return;
+  const t = curTheme(), f = curFont(), a = curAccent();
+  el.innerHTML = `<div class="pop-h"><b>Style this dashboard</b><button data-act="resetstyle" title="Back to the default look">Reset</button><button data-act="closestyle" aria-label="Close">✕</button></div>
+    ${['Professional', 'Expressive'].map(g => `<h3>${g} templates</h3><div class="tpl-grid">${THEMES.filter(x => x.g === g).map(x => `<button class="tpl ${x.id === t ? 'on' : ''}" data-act="theme" data-t="${x.id}"><div class="pv" data-theme="${x.id}"><b>Aa Sales</b><div class="pc"><i></i><i></i><i></i></div><u></u><u></u><u></u></div><span>${esc(x.name)}</span><small>${esc(x.hint)}</small></button>`).join('')}</div>`).join('')}
+    <h3>Font</h3><div class="font-list">${FONTS.map(x => `<button class="${x.id === f ? 'on' : ''}" data-act="font" data-f="${x.id}" style="${x.stack ? `font-family:${x.stack}` : ''}">${esc(x.name)}</button>`).join('')}</div>
+    <h3>Accent colour</h3><div class="swatches"><button class="swatch auto ${a ? '' : 'on'}" data-act="accent" data-c="">Template</button>${ACCENTS.map(c => `<button class="swatch ${c.toLowerCase() === a.toLowerCase() ? 'on' : ''}" style="background:${c}" data-act="accent" data-c="${c}" aria-label="${c}"></button>`).join('')}</div>
+    <p class="muted" style="margin:12px 0 0;font-size:12px">Your choice is saved with this sheet and used in exports and share links.</p>`;
+}
+document.addEventListener('click', e => {
+  const el = $('#stylePanel'); if (!el || el.hidden) return;
+  if (e.composedPath().some(n => n.id === 'stylePanel' || n.id === 'btnStyle')) return;
+  el.hidden = true;
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') { const el = $('#stylePanel'); if (el) el.hidden = true; } });
+$('#btnStyle').addEventListener('click', () => renderStylePanel(false));
+
 /* ---------- export & share ---------- */
 const outDlg = $('#outDlg'), outForm = $('#outForm');
 const TYPES = ['text', 'longtext', 'number', 'money', 'percent', 'date', 'status', 'bool', 'email', 'link'];
@@ -777,7 +828,7 @@ async function getCSS() {
   try { return await (await fetch('style.css')).text(); }
   catch (e) { return [...document.styleSheets].flatMap(ss => { try { return [...ss.cssRules].map(r => r.cssText); } catch (e2) { return []; } }).join('\n'); }
 }
-const standaloneDoc = (name, body, css, theme, autoPrint) => `<!doctype html><html lang="en" data-theme="${esc(theme)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · ${esc(BRAND)}</title><style>${css}</style></head><body class="static"><header class="top"><div class="brand"><b>${esc(BRAND)}</b></div><span class="muted">${esc(name)}</span></header><main>${body}</main><footer class="credit">${creditsInner()}</footer>${autoPrint ? '<script>onload=()=>setTimeout(()=>print(),400)<\/script>' : ''}</body></html>`;
+const standaloneDoc = (name, body, css, st, autoPrint) => `<!doctype html><html lang="en" ${styleAttrs(st.theme, st.font, st.accent)}><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · ${esc(BRAND)}</title><style>${css}</style></head><body class="static"><header class="top"><div class="brand">${brandHTML()}</div><span class="muted">${esc(name)}</span></header><main>${body}</main><footer class="credit">${creditsInner()}</footer>${autoPrint ? '<script>onload=()=>setTimeout(()=>print(),400)<\/script>' : ''}</body></html>`;
 function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
 const fileSafe = n => n.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'dashboard';
 function dataCSV(s) {
@@ -826,21 +877,21 @@ outDlg.addEventListener('click', async e => {
   const s = sheet(), msg = $('#outMsg');
   if (e.target.id === 'linkCopy') { try { await navigator.clipboard.writeText($('#linkOut').value); msg.textContent = 'Link copied.'; } catch (x) { $('#linkOut').select(); msg.textContent = 'Press Ctrl/Cmd+C to copy.'; } return; }
   if (e.target.id !== 'outGo') return;
-  const ids = selectedIds(), name = s.name, theme = curTheme();
+  const ids = selectedIds(), name = s.name, theme = curTheme(), st = { theme, font: curFont(), accent: curAccent() };
   try {
     if (outDlg.dataset.mode === 'export') {
       const fmt = outForm.querySelector('input[name=fmt]:checked').value;
       if (fmt === 'csv') { download(`${fileSafe(name)}.csv`, dataCSV(s), 'text/csv'); msg.textContent = 'Downloaded.'; return; }
       if (!ids.length) { msg.textContent = 'Tick at least one section.'; return; }
-      const doc = standaloneDoc(name, exportBody(ids), await getCSS(), theme, fmt === 'pdf');
+      const doc = standaloneDoc(name, exportBody(ids), await getCSS(), st, fmt === 'pdf');
       if (fmt === 'html') { download(`${fileSafe(name)}-dashboard.html`, doc, 'text/html'); msg.textContent = 'Downloaded.'; }
       else { const w = window.open('', '_blank'); if (!w) { msg.textContent = 'Your browser blocked the new window; allow pop-ups and try again.'; return; } w.document.write(doc); w.document.close(); msg.textContent = 'Print dialog opened in a new tab.'; }
     } else {
       const live = outForm.querySelector('input[name=smode]:checked').value === 'live';
       if (!live && !ids.length) { msg.textContent = 'Tick at least one section.'; return; }
       const payload = live
-        ? { v: 1, k: 'sheet', t: theme, s: { name, columns: s.columns.map(({ name, type, order, desc, formula }) => ({ name, type, order, desc, formula })), rows: s.rows.map(r => s.columns.map(c => r.cells[c.name] ?? '')), titleCol: s.titleCol, statusCol: s.statusCol, doneStatuses: s.doneStatuses, roles: s.roles || {}, fromXlsx: !!s.fromXlsx } }
-        : { v: 1, k: 'snap', t: theme, n: name, h: exportBody(ids) };
+        ? { v: 1, k: 'sheet', t: theme, f: st.font, a: st.accent, s: { name, columns: s.columns.map(({ name, type, order, desc, formula }) => ({ name, type, order, desc, formula })), rows: s.rows.map(r => s.columns.map(c => r.cells[c.name] ?? '')), titleCol: s.titleCol, statusCol: s.statusCol, doneStatuses: s.doneStatuses, roles: s.roles || {}, fromXlsx: !!s.fromXlsx } }
+        : { v: 1, k: 'snap', t: theme, f: st.font, a: st.accent, n: name, h: exportBody(ids) };
       const url = `${location.origin}${location.pathname}#share=${await pack(payload)}`, kb = Math.round(url.length / 1024);
       if (url.length > 600000) { msg.textContent = `This link would be ${kb} KB, too long to share reliably. Use Export (web page) instead, or share a snapshot.`; return; }
       $('#linkBox').hidden = false; $('#linkOut').value = url; $('#linkOut').select();
@@ -951,7 +1002,7 @@ const SAMPLES = {
 };
 dlg.addEventListener('click', e => {
   const k = e.target.dataset?.sample; if (!k) return;
-  if (addSheet(SAMPLE_NAMES[k], parseTable(SAMPLES[k]()))) { ui = freshUI(); save(); render(); dlg.close(); }
+  const added = addSheet(SAMPLE_NAMES[k], parseTable(SAMPLES[k]())); if (added) { added.sample = true; ui = freshUI(); save(); render(); dlg.close(); }
 });
 
 // opening a share link
@@ -962,7 +1013,7 @@ function sheetFromPayload(p) {
   const roles = {}; ['measure', 'agg', 'polarity', 'dim', 'time'].forEach(k => { if (d.roles && typeof d.roles[k] === 'string') roles[k] = d.roles[k].slice(0, 120); });
   return { id: uid(), name: str(d.name) || 'Shared dashboard', columns: cols, rows: d.rows.slice(0, 50000).map(a => ({ id: uid(), touched: now, notes: [], handled: {}, cells: Object.fromEntries(cols.map((c, i) => [c.name, String(a[i] ?? '')])) })),
     titleCol: cols.some(c => c.name === d.titleCol) ? d.titleCol : cols[0]?.name || '', statusCol: cols.some(c => c.name === d.statusCol) ? d.statusCol : '', doneStatuses: str(d.doneStatuses), lastCol: '', staleDays: 0, watches: [], fOff: 0,
-    roles, theme: THEMES.some(t => t.id === p.t) ? p.t : 'clean', reviewed: true, note: '', fromXlsx: !!d.fromXlsx };
+    roles, theme: THEMES.some(t => t.id === p.t) ? p.t : 'executive', font: FONTS.some(x => x.id === p.f) ? p.f : '', accent: /^#[0-9a-f]{6}$/i.test(p.a || '') ? p.a : '', reviewed: true, note: '', fromXlsx: !!d.fromXlsx };
 }
 async function boot() {
   const m = location.hash.match(/^#share=([\w-]+)$/);
@@ -972,15 +1023,15 @@ async function boot() {
     if (!p || p.v !== 1) throw new Error('unsupported link');
     if (p.k === 'sheet') { shared = sheetFromPayload(p); ui = freshUI(); render(); return; }
     if (p.k === 'snap' && typeof p.h === 'string') {
-      const theme = THEMES.some(t => t.id === p.t) ? p.t : 'clean';
-      document.documentElement.dataset.theme = theme; document.title = `${String(p.n).slice(0, 100)} · ${BRAND}`;
+      const st = { theme: THEMES.some(t => t.id === p.t) ? p.t : 'executive', font: FONTS.some(x => x.id === p.f) ? p.f : '', accent: /^#[0-9a-f]{6}$/i.test(p.a || '') ? p.a : '' };
+      document.documentElement.dataset.theme = st.theme; if (st.font) document.documentElement.dataset.font = st.font; if (st.accent) { document.documentElement.style.setProperty('--accent', st.accent); document.documentElement.style.setProperty('--on-accent', onColor(st.accent)); } document.title = `${String(p.n).slice(0, 100)} · ${BRAND}`;
       document.body.classList.add('snapview'); $('#credit').hidden = true;
-      $('.brand').innerHTML = `<b>${esc(BRAND)}</b>`;
+      $('.brand').innerHTML = brandHTML();
       $('#sharebar').innerHTML = `<div class="sharebar"><b>Shared dashboard</b><span class="muted">View-only snapshot of “${esc(String(p.n).slice(0, 100))}”.</span><a href="${esc(location.pathname)}">Make your own dashboard</a></div>`;
       // the snapshot HTML comes from the link, so it is shown in a sandbox without scripts
       const v = $('#viewer'); v.hidden = false;
       v.innerHTML = '<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Shared dashboard"></iframe>';
-      v.firstChild.srcdoc = standaloneDoc(String(p.n).slice(0, 100), p.h, await getCSS(), theme, false).replace('<body class="static">', '<body class="static"><base target="_blank">');
+      v.firstChild.srcdoc = standaloneDoc(String(p.n).slice(0, 100), p.h, await getCSS(), st, false).replace('<body class="static">', '<body class="static"><base target="_blank">');
       return;
     }
     throw new Error('unsupported link');

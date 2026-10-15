@@ -4,33 +4,34 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>SheetPilot: turn any spreadsheet into a dashboard</title>
-<meta name="description" content="SheetPilot turns any CSV or Excel file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.">
-<meta name="theme-color" content="#4a3aa7">
+<meta name="description" content="SheetPilot turns any Excel or CSV file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.">
+<meta name="theme-color" content="#107c41">
 <link rel="canonical" href="https://george-stathopoulos.github.io/sheetpilot/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SheetPilot">
 <meta property="og:title" content="SheetPilot: turn any spreadsheet into a dashboard">
-<meta property="og:description" content="SheetPilot turns any CSV or Excel file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.">
+<meta property="og:description" content="SheetPilot turns any Excel or CSV file into an interactive dashboard in your browser. It works out what is in your sheet, how it is calculated and what stands out. Free, with nothing uploaded.">
 <meta property="og:url" content="https://george-stathopoulos.github.io/sheetpilot/">
 <meta property="og:image" content="https://george-stathopoulos.github.io/sheetpilot/assets/og.jpg">
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="assets/favicon.svg" type="image/svg+xml">
 <!-- Cloudflare Web Analytics: counts visits anonymously, no cookies --><script type='module' src='https://static.cloudflareinsights.com/beacon.min.js' data-cf-beacon='{"token": "64332b427a604e879f82853393ebdb0d"}'></script><!-- End Cloudflare Web Analytics -->
-<link rel="stylesheet" href="assets/site.css?v=1.0.0.mv98pp3h">
-<link rel="stylesheet" href="assets/home.css?v=1.0.0.mv98pp3h">
-<script>try{localStorage.removeItem('hdh-site-theme');var t=sessionStorage.getItem('hdh-site-theme');document.documentElement.dataset.theme=t==='light'?'light':'dark';}catch(e){document.documentElement.dataset.theme='dark';}</script>
+<link rel="stylesheet" href="assets/site.css?v=1.0.0.mv99h6bd">
+<link rel="stylesheet" href="assets/brand.css?v=1.0.0.mv99h6bd">
+<link rel="stylesheet" href="assets/home.css?v=1.0.0.mv99h6bd">
+<script>try{localStorage.removeItem('hdh-site-theme');var t=sessionStorage.getItem('hdh-site-theme');document.documentElement.dataset.theme=t==='dark'?'dark':'light';}catch(e){document.documentElement.dataset.theme='light';}</script>
 
 </head>
 <body data-root="" class="is-home">
 <a class="skip" href="#main">Skip to content</a>
 <header class="site-head">
 	<div class="wrap">
-		<a class="brand brand--logo" href="./" aria-label="SheetPilot home"><svg class="logo-mark" width="30" height="30" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a6cf0"/><stop offset="1" stop-color="#3b2d96"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lg)"/><g fill="#fff" fill-opacity=".28"><rect x="11" y="38" width="10" height="15" rx="2.5"/><rect x="26" y="31" width="10" height="22" rx="2.5"/><rect x="41" y="23" width="10" height="30" rx="2.5"/></g><path d="M54 10 14 27l15 6 6 17z" fill="#fff"/><path d="m29 33 25-23" stroke="#3b2d96" stroke-opacity=".45" stroke-width="2" fill="none"/><path d="m29 33 6 17 4-9z" fill="#ffb224"/></svg>
+		<a class="brand brand--logo" href="./" aria-label="SheetPilot home"><svg class="logo-mark" width="30" height="30" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="spg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2bb673"/><stop offset="1" stop-color="#0d6a39"/></linearGradient><clipPath id="spc1"><rect width="64" height="64" rx="16"/></clipPath></defs><rect width="64" height="64" rx="16" fill="url(#spg1)"/><g clip-path="url(#spc1)" stroke="#fff" stroke-opacity=".16" stroke-width="1.6"><path d="M0 21.5h64M0 42.5h64M21.5 0v64M42.5 0v64"/></g><g fill="#fff" fill-opacity=".3"><rect x="11" y="38" width="10" height="15" rx="2.5"/><rect x="26" y="31" width="10" height="22" rx="2.5"/><rect x="41" y="23" width="10" height="30" rx="2.5"/></g><path d="M54 10 14 27l15 6 6 17z" fill="#fff"/><path d="m29 33 25-23" stroke="#0d6a39" stroke-opacity=".4" stroke-width="2" fill="none"/><path d="m29 33 6 17 4-9z" fill="#ffd54a"/></svg>
 <span class="logo-text">Sheet<b>Pilot</b></span></a>
 		<nav id="site-nav" class="nav" aria-label="Main">
 			<a href="#how">How it works</a>
 			<a href="#features">Features</a>
-			<a href="#privacy">Privacy</a>
+			<a href="#templates">Templates</a>
 			<a href="app/">Open the app</a>
 			<a href="docs/">Help center</a>
 		</nav>
@@ -42,236 +43,221 @@
 	</div>
 </header>
 <main id="main">
-<!-- Hero -->
-<section class="fx-hero" data-hero>
-	<div class="fx-glow fx-glow--a" data-speed="0.22" aria-hidden="true"></div>
-	<div class="fx-glow fx-glow--b" data-speed="-0.12" aria-hidden="true"></div>
-	<div class="fx-cone" data-cone aria-hidden="true"></div>
-	<div class="wrap fx-hero__grid">
-		<div class="fx-hero__text">
-			<p class="fx-eyebrow">Free · Runs in your browser</p>
-			<h1 class="fx-title">
-				<span class="fx-line">Stop
-					<span class="fx-rotator" data-rotator aria-live="off">
-						<span class="fx-rotator__word is-in">scrolling</span>
-						<span class="fx-rotator__word">squinting at</span>
-						<span class="fx-rotator__word">pivoting</span>
-						<span class="fx-rotator__word">guessing at</span>
-					</span>
-				</span>
-				<span class="fx-line">your sheet.</span>
-				<span class="fx-line"><span class="fx-marker">Pilot it.</span></span>
-			</h1>
-			<p class="fx-lede">Drop in a CSV or Excel file. SheetPilot works out what's in it, how it's calculated and what stands out, then builds an interactive dashboard in seconds. Your data never leaves your browser.</p>
+<!-- Hero: a boring sheet becomes a dashboard -->
+<section class="sp-hero" data-hero>
+	<div class="wrap sp-hero__grid">
+		<div>
+			<p class="sp-ref"><b>A1</b> Free · runs in your browser</p>
+			<h1 class="sp-title">Your spreadsheet, finally <span class="sp-select">readable.</span></h1>
+			<p class="sp-lede">Drop in an Excel or CSV file. SheetPilot works out what's in it, how it's calculated and what stands out, then turns it into an interactive dashboard in seconds. Nothing is uploaded.</p>
 			<div class="cta-row">
 				<a class="btn btn-primary" href="app/">Open SheetPilot</a>
 				<a class="btn btn-ghost" href="docs/getting-started/">Read the guide</a>
 			</div>
-			<p class="fx-meta">Free and open source · No account · No upload · CSV, Excel and pasted cells</p>
+			<p class="sp-meta">Free and open source · No account · No upload · Excel is best, CSV works too</p>
 		</div>
-		<div class="fx-hero__visual" data-speed="-0.06" aria-hidden="true">
-			<svg viewBox="0 0 520 360" class="fx-browser">
-				<rect x="10" y="10" width="500" height="340" rx="18" class="d-window"/>
-				<rect x="10" y="10" width="500" height="40" rx="18" class="d-bar"/>
-				<rect x="10" y="32" width="500" height="18" class="d-bar"/>
-				<circle cx="38" cy="30" r="6" class="d-dot"/><circle cx="58" cy="30" r="6" class="d-dot"/><circle cx="78" cy="30" r="6" class="d-dot"/>
-				<g><circle cx="420" cy="30" r="7" class="d-chip"/><circle cx="440" cy="30" r="7" fill="#0b7f9c"/><circle cx="460" cy="30" r="7" fill="#e8590c"/><circle cx="480" cy="30" r="7" fill="#2e7d4f"/></g>
-				<rect x="30" y="66" width="140" height="52" rx="12" class="d-tile"/><text x="44" y="84" class="d-label">Rows</text><text x="44" y="108" class="d-num">1,240</text>
-				<rect x="190" y="66" width="140" height="52" rx="12" class="d-tile"/><text x="204" y="84" class="d-label">Average score</text><text x="204" y="108" class="d-num">95.5%</text>
-				<rect x="350" y="66" width="140" height="52" rx="12" class="d-tile"/><text x="364" y="84" class="d-label">SLA met</text><text x="364" y="108" class="d-num">78%</text>
-				<rect x="30" y="134" width="228" height="196" rx="14" class="d-panel"/>
-				<text x="46" y="156" class="d-ptitle">Average by priority</text>
-				<line x1="46" y1="306" x2="242" y2="306" class="d-axis"/>
-				<g>
-					<rect class="d-col d-accent" x="52" y="180" width="22" height="126" rx="5"/>
-					<rect class="d-col d-accent" x="82" y="210" width="22" height="96" rx="5"/>
-					<rect class="d-col d-accent" x="112" y="232" width="22" height="74" rx="5"/>
-					<rect class="d-col d-accent" x="142" y="252" width="22" height="54" rx="5"/>
-					<rect class="d-col d-accent" x="172" y="268" width="22" height="38" rx="5"/>
-					<rect class="d-col d-accent" x="202" y="284" width="22" height="22" rx="5"/>
-				</g>
-				<rect x="272" y="134" width="218" height="196" rx="14" class="d-panel"/>
-				<text x="288" y="156" class="d-ptitle">Trend over time</text>
-				<line x1="288" y1="306" x2="474" y2="306" class="d-axis"/>
-				<path class="d-line" stroke="#4a3aa7" d="M290 280 C320 270 336 290 360 262 S410 232 432 214 S462 186 474 178" style="animation-name:d-draw"/>
-				<g class="d-plane"><path d="M486 160 464 170l8 3 3 9z" fill="#ffb224"/></g>
-				<g class="d-note">
-					<rect x="284" y="288" width="196" height="30" rx="10" class="d-note-bg"/>
-					<text x="296" y="307" class="d-note-text">Priority explains 42% of the variation</text>
-				</g>
-			</svg>
-		</div>
-	</div>
-</section>
-
-<!-- Lost in translation -->
-<section class="fx-lost" id="lost">
-	<div class="wrap fx-two">
-		<div class="reveal">
-			<span class="kicker">Sound familiar?</span>
-			<h2 class="fx-h2">The numbers are in there somewhere.</h2>
-			<p class="fx-big">Most teams already keep what matters in spreadsheets. Getting an answer out of them means hunting for the right tab, rebuilding the same pivot tables, and explaining the formulas to whoever asked. Dashboard tools promise relief, then ask you to move everything first.</p>
-		</div>
-		<div class="fx-chat" data-chat>
-			<div class="fx-msg is-them"><span>Can I get last month's numbers by Friday?</span></div>
-			<div class="fx-msg is-us"><span>Sure. Which file: sales_FINAL_v3 or sales_FINAL_v3 (copy)?</span></div>
-			<div class="fx-msg is-them"><span>The one with all the tabs. Add a chart?</span></div>
-			<div class="fx-msg is-us"><span>Which column is revenue? And is higher better here?</span></div>
-			<div class="fx-msg is-them"><span>Can you just make it look nice? 🙏</span></div>
-			<div class="fx-msg is-us is-late"><span>…two hours of pivot tables later.</span></div>
-			<div class="fx-fix">
-				<div><strong>With SheetPilot</strong><span>Drop the file. It finds the header, the dates, the formulas and the main number, then shows what stands out.</span></div>
+		<div>
+			<div class="sp-demo" data-demo data-phase="sheet" aria-hidden="true">
+				<div class="sp-win">
+					<div class="sp-top"><i></i><i></i><i></i><span>Q1_sales_FINAL_v3.xlsx</span></div>
+					<div class="sp-fx"><em>fx</em><code data-formula></code></div>
+					<div class="sp-stage">
+						<div class="sp-sheet">
+							<table>
+								<thead><tr><th></th><th>A</th><th>B</th><th>C</th><th>D</th><th>E</th><th>F</th><th>G</th></tr></thead>
+								<tbody>
+									<tr class="h"><th>1</th><td>Date</td><td>Region</td><td>Rep</td><td>Product</td><td>Units</td><td>Price</td><td>Revenue</td></tr>
+									<tr><th>2</th><td data-t="date">03/01/26</td><td data-t="cat">North</td><td data-t="cat">A. Moreau</td><td data-t="cat">Smart Lamp</td><td data-t="num" class="n">12</td><td data-t="num" class="n">49</td><td data-t="calc" class="n">588</td></tr>
+									<tr><th>3</th><td data-t="date">03/01/26</td><td data-t="cat">West</td><td data-t="cat">B. Hartley</td><td data-t="cat">Desk Pro</td><td data-t="num" class="n">4</td><td data-t="num" class="n">199</td><td data-t="calc" class="n">796</td></tr>
+									<tr><th>4</th><td data-t="date">04/01/26</td><td data-t="cat">East</td><td data-t="cat">C. Díaz</td><td data-t="cat">Air Filter</td><td data-t="num" class="n">9</td><td data-t="num" class="n">89</td><td data-t="calc" class="n">801</td></tr>
+									<tr><th>5</th><td data-t="date">04/01/26</td><td data-t="cat">West</td><td data-t="cat">D. Volkov</td><td data-t="cat">Sound Bar</td><td data-t="num" class="n">6</td><td data-t="num" class="n">149</td><td data-t="calc" class="n">894</td></tr>
+									<tr><th>6</th><td data-t="date">05/01/26</td><td data-t="cat">Online</td><td data-t="cat">E. Larsen</td><td data-t="cat">Dock</td><td data-t="num" class="n">20</td><td data-t="num" class="n">39</td><td data-t="calc" class="n">780</td></tr>
+									<tr><th>7</th><td data-t="date">05/01/26</td><td data-t="cat">North</td><td data-t="cat">F. Nasser</td><td data-t="cat">Desk Pro</td><td data-t="num" class="n">3</td><td data-t="num" class="n">199</td><td data-t="calc" class="n">597</td></tr>
+									<tr><th>8</th><td data-t="date">06/01/26</td><td data-t="cat">West</td><td data-t="cat">G. Liu</td><td data-t="cat">Smart Lamp</td><td data-t="num" class="n">15</td><td data-t="num" class="n">49</td><td data-t="calc" class="n">735</td></tr>
+									<tr><th>9</th><td data-t="date">06/01/26</td><td data-t="cat">East</td><td data-t="cat">H. Martin</td><td data-t="cat">Sound Bar</td><td data-t="num" class="n">5</td><td data-t="num" class="n">149</td><td data-t="calc" class="n">745</td></tr>
+									<tr><th>10</th><td data-t="date">07/01/26</td><td data-t="cat">Online</td><td data-t="cat">A. Moreau</td><td data-t="cat">Dock</td><td data-t="num" class="n">18</td><td data-t="num" class="n">39</td><td data-t="calc" class="n">702</td></tr>
+								</tbody>
+							</table>
+							<div class="sp-sel"></div>
+							<div class="sp-tags"><span>date</span><span>text</span><span>numbers</span><span>= units × price</span></div>
+						</div>
+						<div class="sp-dash">
+							<div class="sp-kpis">
+								<div class="sp-kpi"><small>Revenue</small><b data-count="6638" data-prefix="$">$0</b></div>
+								<div class="sp-kpi"><small>Orders</small><b data-count="9">0</b></div>
+								<div class="sp-kpi"><small>Average order</small><b data-count="738" data-prefix="$">$0</b></div>
+							</div>
+							<div class="sp-panel"><h4>Revenue by region</h4>
+								<div class="sp-brow"><span>West</span><i style="--w:100%"></i><b>$2.4K</b></div>
+								<div class="sp-brow"><span>East</span><i style="--w:64%"></i><b>$1.5K</b></div>
+								<div class="sp-brow"><span>Online</span><i style="--w:61%"></i><b>$1.5K</b></div>
+								<div class="sp-brow"><span>North</span><i style="--w:49%"></i><b>$1.2K</b></div>
+							</div>
+							<div class="sp-panel sp-trend"><h4>Revenue over time</h4>
+								<svg class="sp-line" viewBox="0 0 200 86" preserveAspectRatio="none"><path class="a" d="M4 74 L50 52 L100 62 L150 30 L196 20 L196 86 L4 86Z"/><path class="l" d="M4 74 L50 52 L100 62 L150 30 L196 20"/></svg>
+							</div>
+							<div class="sp-note">West brings in 37% of revenue from just 3 of 9 orders.</div>
+						</div>
+					</div>
+				</div>
+				<div class="sp-steps"><span></span><span></span><span></span><span></span></div>
+				<div class="sp-captions"><span>A plain sheet</span><span>It reads the columns</span><span>It builds the view</span><span>You see what matters</span></div>
 			</div>
 		</div>
 	</div>
 </section>
 
-<!-- How it works: pinned, scrolls sideways -->
-<section class="fx-how" id="how" data-hscroll>
-	<div class="fx-how__sticky">
-		<div class="wrap fx-how__head">
-			<span class="kicker">How it works</span>
-			<h2 class="fx-h2">Four steps. About a minute.</h2>
-			<div class="fx-progress" aria-hidden="true"><span data-progress></span></div>
-		</div>
-		<div class="fx-track" data-track>
-			<article class="fx-panel">
-				<span class="fx-panel__num">1</span>
-				<div class="fx-panel__art"><svg viewBox="0 0 240 150" aria-hidden="true"><rect x="40" y="22" width="130" height="106" rx="12" class="a-paper"/><rect x="40" y="22" width="130" height="24" rx="12" class="a-indigo"/><rect x="52" y="58" width="48" height="9" rx="4" class="a-line"/><rect x="106" y="58" width="52" height="9" rx="4" class="a-line"/><rect x="52" y="76" width="48" height="9" rx="4" class="a-line"/><rect x="106" y="76" width="52" height="9" rx="4" class="a-line"/><rect x="52" y="94" width="48" height="9" rx="4" class="a-line"/><rect x="106" y="94" width="52" height="9" rx="4" class="a-line"/><path d="M196 40v52m-18-18 18 18 18-18" fill="none" stroke="#ffb224" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-				<h3>Drop in your sheet</h3>
-				<p>Upload a CSV or Excel file, paste cells from Google Sheets, or try a sample. Messy headers, several tabs and day-first dates are all fine.</p>
-			</article>
-			<article class="fx-panel">
-				<span class="fx-panel__num">2</span>
-				<div class="fx-panel__art"><svg viewBox="0 0 240 150" aria-hidden="true"><rect x="30" y="18" width="130" height="114" rx="12" class="a-paper"/><rect x="46" y="36" width="70" height="18" rx="9" class="a-indigo"/><rect x="46" y="66" width="96" height="8" rx="4" class="a-line"/><rect x="46" y="82" width="80" height="8" rx="4" class="a-line"/><rect x="46" y="98" width="90" height="8" rx="4" class="a-line"/><rect x="120" y="44" width="96" height="70" rx="12" class="a-amber-soft"/><path d="M146 80l12 12 24-26" fill="none" stroke="#1f1a4d" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
-				<h3>It reads it for you</h3>
-				<p>SheetPilot works out what each column is, how the numbers are calculated, which direction is good, and what to compare. It tells you how it read the sheet, and you can correct it.</p>
-			</article>
-			<article class="fx-panel">
-				<span class="fx-panel__num">3</span>
-				<div class="fx-panel__art"><svg viewBox="0 0 240 150" aria-hidden="true"><rect x="20" y="20" width="200" height="110" rx="12" class="a-paper"/><rect x="36" y="86" width="22" height="30" rx="5" class="a-indigo"/><rect x="66" y="66" width="22" height="50" rx="5" class="a-indigo"/><rect x="96" y="76" width="22" height="40" rx="5" class="a-indigo"/><rect x="126" y="46" width="22" height="70" rx="5" class="a-amber"/><circle cx="178" cy="52" r="9" fill="#4a3aa7"/><circle cx="200" cy="52" r="9" fill="#0b7f9c"/><circle cx="178" cy="76" r="9" fill="#e8590c"/><circle cx="200" cy="76" r="9" fill="#2e7d4f"/></svg></div>
-				<h3>Explore and restyle</h3>
-				<p>Click a bar to filter everything. Change the measure or grouping. Pick one of ten styles, from Corporate to Midnight, to match your team or brand.</p>
-			</article>
-			<article class="fx-panel">
-				<span class="fx-panel__num">4</span>
-				<div class="fx-panel__art"><svg viewBox="0 0 240 150" aria-hidden="true"><rect x="30" y="30" width="110" height="92" rx="12" class="a-paper"/><rect x="44" y="46" width="60" height="9" rx="4" class="a-ink"/><rect x="44" y="64" width="82" height="8" rx="4" class="a-line"/><rect x="44" y="80" width="70" height="8" rx="4" class="a-line"/><path d="M168 38l36 18-36 18v-10c-18 0-30 6-38 18 3-22 16-36 38-40z" class="a-indigo"/></svg></div>
-				<h3>Export or share</h3>
-				<p>Tick the sections you want and download a single web page or PDF. Or create a link: a view-only snapshot, or an interactive copy. No server, no account.</p>
-			</article>
-		</div>
-	</div>
-</section>
-
-<!-- Parallax band -->
-<section class="fx-band" aria-label="No upload, no sign-up, no formulas to write">
-	<p class="fx-band__row" data-drift="-0.35">No upload · No sign-up · No formulas to write · No upload · No sign-up · No formulas to write ·</p>
-	<p class="fx-band__row fx-band__row--outline" data-drift="0.3">Just your sheet · Just the story · Just your sheet · Just the story · Just your sheet · Just the story ·</p>
-</section>
-
-<!-- Features -->
-<section class="fx-section" id="features">
-	<div class="wrap">
-		<div class="fx-head reveal">
-			<span class="kicker">Everything in one page</span>
-			<h2 class="fx-h2">Built for the spreadsheets you already have.</h2>
-		</div>
-		<div class="fx-grid">
-			<article class="fx-card reveal"><span class="fx-card__icon">◎</span><h3>Reads messy sheets</h3><p>Finds the real header under title rows, merges repeated headers with their labels, handles semicolons and tabs, several tabs, and ambiguous dates.</p></article>
-			<article class="fx-card reveal"><span class="fx-card__icon">ƒ</span><h3>Finds the logic</h3><p>Shows your real Excel formulas in plain words, or works out sums, ratios and products from the values, and flags rows that break them.</p></article>
-			<article class="fx-card reveal"><span class="fx-card__icon">✦</span><h3>Says what stands out</h3><p>“Enterprise is 83% of revenue.” “No single region stands out.” Findings in plain language, including when there's nothing to see.</p></article>
-			<article class="fx-card reveal"><span class="fx-card__icon">◐</span><h3>Ten styles</h3><p>Clean, Midnight, Corporate, Forest, Sunset, Ocean, Violet, Mono, Rose and Paper, for different teams and brands. Exports keep the style.</p></article>
-			<article class="fx-card reveal"><span class="fx-card__icon">⤓</span><h3>Choose what to export</h3><p>Tick the sections you need and get one self-contained web page, a PDF or the filtered rows as CSV.</p></article>
-			<article class="fx-card reveal"><span class="fx-card__icon">⇪</span><h3>Share a link</h3><p>A view-only snapshot without raw rows, or an interactive copy people can filter. The link carries the data; there is no server.</p></article>
-		</div>
-	</div>
-</section>
-
-<!-- Screenshots -->
-<section class="fx-section fx-section--alt" id="screenshots">
-	<div class="wrap">
-		<div class="fx-head reveal">
-			<span class="kicker">See it in action</span>
-			<h2 class="fx-h2">The real screens.</h2>
-		</div>
-		<div class="fx-gallery gallery">
-			<figure class="shot reveal" data-zoom><img src="assets/img/dashboard.jpg" width="1800" height="1125" alt="A support-ticket sheet, turned into a dashboard with key numbers and findings." loading="lazy" decoding="async"><figcaption>A support-ticket sheet, turned into a dashboard with key numbers and findings.</figcaption></figure>
-			<figure class="shot reveal" data-zoom><img src="assets/img/read-your-sheet.jpg" width="1800" height="285" alt="SheetPilot tells you how it read the sheet, and you can correct it." loading="lazy" decoding="async"><figcaption>SheetPilot tells you how it read the sheet, and you can correct it.</figcaption></figure>
-			<figure class="shot reveal" data-zoom><img src="assets/img/heatmap.jpg" width="1800" height="752" alt="A heatmap of scored criteria by person, found from a sheet's sum formula." loading="lazy" decoding="async"><figcaption>A heatmap of scored criteria by person, found from a sheet's sum formula.</figcaption></figure>
-			<figure class="shot reveal" data-zoom><img src="assets/img/theme-corporate.jpg" width="1800" height="1125" alt="The same dashboard in the Corporate style." loading="lazy" decoding="async"><figcaption>The same dashboard in the Corporate style.</figcaption></figure>
-		</div>
-		<p class="fx-gallery__more reveal"><a class="fx-link" href="docs/">More screenshots in the help center →</a></p>
-	</div>
-</section>
-
-<!-- It explains itself -->
-<section class="fx-support" id="explains">
-	<div class="wrap fx-two">
+<!-- What is hiding in the sheet -->
+<section class="sp-section sp-section--alt" id="hidden">
+	<div class="wrap sp-hidden">
 		<div class="reveal">
-			<span class="kicker">No black box</span>
-			<h2 class="fx-h2">It tells you how it read your sheet.</h2>
-			<p class="fx-big">Every choice is shown, flagged when it's unsure, and one click away from being changed. Your corrections stick.</p>
-			<ul class="fx-ticks">
-				<li><strong>Main number:</strong> chosen by name, type and variation, shown as a total or an average.</li>
-				<li><strong>Which direction is good:</strong> hours and cost should be low, scores and revenue high.</li>
-				<li><strong>What to compare:</strong> the column whose groups differ most on that number.</li>
-				<li><strong>Data checks:</strong> empty columns, stray “N/A” entries, rows that break a formula.</li>
-			</ul>
-			<p><a class="fx-link" href="docs/how-it-reads-your-sheet/">How SheetPilot reads a sheet →</a></p>
+			<p class="sp-ref"><b>B2</b> What's hiding in your sheet</p>
+			<h2 class="sp-h2">The answers are in there. Somewhere.</h2>
+			<p class="sp-big">Most teams keep what matters in spreadsheets, but a sheet only stores it. Spotting that one group drives the result, that three rows break a formula, or that dates mix two formats takes hours of filtering. SheetPilot leaves a comment on the cells that matter.</p>
 		</div>
-		<div class="sp-read reveal" aria-hidden="true">
-			<b>How I read your sheet <span class="muted">— check this looks right</span></b>
-			<ul>
-				<li>Each row is named by <strong>Ticket ID</strong></li>
-				<li>Main number: <strong>Resolution time (hours)</strong>, shown as an average; lower is better</li>
-				<li>Compared by: <strong>Priority</strong> <span class="sp-pill">unsure</span></li>
-				<li>Timeline: <strong>Created</strong></li>
+		<div class="reveal">
+			<div class="sp-cells">
+				<table>
+					<thead><tr><th></th><th>Priority</th><th>Hours</th><th>SLA met</th></tr></thead>
+					<tbody>
+						<tr><th>2</th><td class="flag">Low</td><td>34.8</td><td>FALSE</td></tr>
+						<tr><th>3</th><td>Medium</td><td>21.8</td><td>TRUE</td></tr>
+						<tr><th>4</th><td>High</td><td>12.0</td><td>TRUE</td></tr>
+						<tr><th>5</th><td>Critical</td><td class="flag">4.3</td><td>TRUE</td></tr>
+					</tbody>
+				</table>
+				<div class="sp-cmts">
+					<div class="sp-cmt"><small>Key finding · Priority</small>Priority explains 74% of the variation in resolution time.</div>
+					<div class="sp-cmt"><small>Data check · Revenue</small>Revenue = Units × Unit price holds in all 420 rows.</div>
+				</div>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- How it works: sheet tabs -->
+<section class="sp-section" id="how">
+	<div class="wrap">
+		<div class="sp-head reveal">
+			<p class="sp-ref"><b>C3</b> How it works</p>
+			<h2 class="sp-h2">Four steps. About a minute.</h2>
+		</div>
+		<div class="sp-how reveal" data-tabs>
+			<div class="sp-panels">
+				<div class="sp-pane is-on" role="tabpanel" id="pane-1"><div><h3>1 · Drop in your sheet</h3><p>Upload an Excel or CSV file, paste cells from Google Sheets, or try a sample. Messy headers, several tabs and day-first dates are all fine. <strong>Excel (.xlsx) gives the best results</strong>, because it keeps your formulas.</p></div><figure><img src="assets/img/import-dialog.jpg" width="1800" height="673" alt="The import dialog, with the recommendation to upload an Excel file." loading="lazy" decoding="async"></figure></div>
+				<div class="sp-pane" role="tabpanel" id="pane-2"><div><h3>2 · It reads it for you</h3><p>SheetPilot works out what each column is, how the numbers are calculated, which direction is good, and what to compare. It tells you how it read the sheet and lets you correct any choice.</p></div><figure><img src="assets/img/read-your-sheet.jpg" width="1800" height="285" alt="The “How I read your sheet” box." loading="lazy" decoding="async"></figure></div>
+				<div class="sp-pane" role="tabpanel" id="pane-3"><div><h3>3 · Explore and restyle</h3><p>Click a bar to filter everything. Change the measure or the grouping. Click the palette icon to choose a template, a font and an accent colour that fit your team or brand.</p></div><figure><img src="assets/img/style-panel.jpg" width="1800" height="1125" alt="The style panel: ten templates, fonts and accent colours." loading="lazy" decoding="async"></figure></div>
+				<div class="sp-pane" role="tabpanel" id="pane-4"><div><h3>4 · Export or share</h3><p>Tick the sections you want and download one web page, a PDF or the rows as CSV. Or create a link: a view-only snapshot, or an interactive copy. No server and no account.</p></div><figure><img src="assets/img/share-dialog.jpg" width="1730" height="1800" alt="The share dialog." loading="lazy" decoding="async"></figure></div>
+			</div>
+			<div class="sp-tabs" role="tablist" aria-label="How it works">
+				<button class="sp-tab" role="tab" aria-selected="true" aria-controls="pane-1">Drop it in</button>
+				<button class="sp-tab" role="tab" aria-selected="false" aria-controls="pane-2">It reads it</button>
+				<button class="sp-tab" role="tab" aria-selected="false" aria-controls="pane-3">Style it</button>
+				<button class="sp-tab" role="tab" aria-selected="false" aria-controls="pane-4">Share it</button>
+			</div>
+		</div>
+	</div>
+</section>
+
+<!-- Features as a table -->
+<section class="sp-section sp-section--alt" id="features">
+	<div class="wrap">
+		<div class="sp-head reveal">
+			<p class="sp-ref"><b>D4</b> Features</p>
+			<h2 class="sp-h2">Built for the spreadsheets you already have.</h2>
+		</div>
+		<div class="sp-table reveal">
+			<div class="sp-tr sp-tr--head"><div></div><div>Feature</div><div>What it does</div><div>For example</div></div>
+			<div class="sp-tr"><div class="no">1</div><div><h3>Reads messy sheets</h3></div><div><p>Finds the real header under title rows, merges repeated headers with their labels, and copes with semicolons, several tabs and ambiguous dates.</p></div><div><code>08.10.2026 → 8 Oct</code></div></div>
+			<div class="sp-tr"><div class="no">2</div><div><h3>Finds the logic</h3></div><div><p>Shows your real Excel formulas in plain words, or works out sums, products and ratios from the values, and flags rows that break them.</p></div><div><code>Revenue = Units × Unit price</code></div></div>
+			<div class="sp-tr"><div class="no">3</div><div><h3>Says what stands out</h3></div><div><p>Plain-language findings, including when nothing stands out, plus data checks for gaps, stray “N/A” entries and repeated IDs.</p></div><div><code>“Enterprise is 83% of revenue”</code></div></div>
+			<div class="sp-tr"><div class="no">4</div><div><h3>Explains itself</h3></div><div><p>Shows how it read the sheet, flags what it is unsure about, and remembers every correction you make.</p></div><div><code>Lower is better · unsure</code></div></div>
+			<div class="sp-tr"><div class="no">5</div><div><h3>Fourteen templates</h3></div><div><p>Professional ones first, expressive ones after. They differ in typography, outlines and chart shapes, plus your choice of font and accent colour.</p></div><div><code>Executive · Graphite · Slate · Analyst…</code></div></div>
+			<div class="sp-tr"><div class="no">6</div><div><h3>Export and share</h3></div><div><p>Pick the sections to include, then export a web page, PDF or CSV, or share a snapshot or interactive link.</p></div><div><code>dashboard.html · share link</code></div></div>
+			<div class="sp-tr"><div class="no">7</div><div><h3>Reminders</h3></div><div><p>Optional: turn follow-up or review dates into an overdue, today and coming-up list.</p></div><div><code>Next review − 30 days</code></div></div>
+		</div>
+	</div>
+</section>
+
+<!-- Templates -->
+<section class="sp-section" id="templates">
+	<div class="wrap">
+		<div class="sp-head reveal">
+			<p class="sp-ref"><b>E5</b> Templates</p>
+			<h2 class="sp-h2">Same data. A look that fits.</h2>
+			<p class="sp-big">Fourteen templates. Start with the professional ones: Executive, Graphite, Slate (a calm dark mode) and Analyst. Prefer something with more character? Blueprint, Notebook and Terminal are there too.</p>
+		</div>
+	</div>
+	<div class="sp-strip reveal" aria-label="The templates">
+		<div class="sp-strip__track"><figure><img src="assets/img/dashboard.jpg" width="1800" height="1125" alt="The Executive template" loading="lazy" decoding="async"><figcaption>Executive <small>· the default</small></figcaption></figure><figure><img src="assets/img/theme-graphite.jpg" width="1800" height="1125" alt="The Graphite template" loading="lazy" decoding="async"><figcaption>Graphite <small>· neutral, formal</small></figcaption></figure><figure><img src="assets/img/theme-slate.jpg" width="1800" height="1125" alt="The Slate template" loading="lazy" decoding="async"><figcaption>Slate <small>· calm dark mode</small></figcaption></figure><figure><img src="assets/img/theme-analyst.jpg" width="1800" height="1125" alt="The Analyst template" loading="lazy" decoding="async"><figcaption>Analyst <small>· compact, navy</small></figcaption></figure><figure><img src="assets/img/theme-sheet.jpg" width="1800" height="1125" alt="The Sheet template" loading="lazy" decoding="async"><figcaption>Sheet <small>· green with grid lines</small></figcaption></figure><figure><img src="assets/img/theme-boardroom.jpg" width="1800" height="1125" alt="The Boardroom template" loading="lazy" decoding="async"><figcaption>Boardroom <small>· navy, serif headings</small></figcaption></figure><figure><img src="assets/img/theme-minimal.jpg" width="1800" height="1125" alt="The Minimal template" loading="lazy" decoding="async"><figcaption>Minimal <small>· hairlines, light type</small></figcaption></figure><figure><img src="assets/img/theme-editorial.jpg" width="1800" height="1125" alt="The Editorial template" loading="lazy" decoding="async"><figcaption>Editorial <small>· serif, double rules</small></figcaption></figure><figure><img src="assets/img/theme-midnight.jpg" width="1800" height="1125" alt="The Midnight template" loading="lazy" decoding="async"><figcaption>Midnight <small>· dark, soft glow</small></figcaption></figure><figure><img src="assets/img/theme-soft.jpg" width="1800" height="1125" alt="The Soft template" loading="lazy" decoding="async"><figcaption>Soft <small>· frosted, pastel</small></figcaption></figure><figure><img src="assets/img/theme-blueprint.jpg" width="1800" height="1125" alt="The Blueprint template" loading="lazy" decoding="async"><figcaption>Blueprint <small>· dashed, graph paper</small></figcaption></figure><figure><img src="assets/img/theme-notebook.jpg" width="1800" height="1125" alt="The Notebook template" loading="lazy" decoding="async"><figcaption>Notebook <small>· dotted, ruled paper</small></figcaption></figure><figure><img src="assets/img/theme-playful.jpg" width="1800" height="1125" alt="The Playful template" loading="lazy" decoding="async"><figcaption>Playful <small>· thick outlines</small></figcaption></figure><figure><img src="assets/img/theme-terminal.jpg" width="1800" height="1125" alt="The Terminal template" loading="lazy" decoding="async"><figcaption>Terminal <small>· green on black</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/dashboard.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Executive <small>· the default</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-graphite.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Graphite <small>· neutral, formal</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-slate.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Slate <small>· calm dark mode</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-analyst.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Analyst <small>· compact, navy</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-sheet.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Sheet <small>· green with grid lines</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-boardroom.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Boardroom <small>· navy, serif headings</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-minimal.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Minimal <small>· hairlines, light type</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-editorial.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Editorial <small>· serif, double rules</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-midnight.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Midnight <small>· dark, soft glow</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-soft.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Soft <small>· frosted, pastel</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-blueprint.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Blueprint <small>· dashed, graph paper</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-notebook.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Notebook <small>· dotted, ruled paper</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-playful.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Playful <small>· thick outlines</small></figcaption></figure><figure aria-hidden="true"><img src="assets/img/theme-terminal.jpg" width="1800" height="1125" alt="" loading="lazy" decoding="async"><figcaption>Terminal <small>· green on black</small></figcaption></figure></div>
+	</div>
+	<div class="wrap sp-two">
+		<div class="reveal">
+			<h3 class="sp-h2" style="font-size:clamp(26px,3vw,36px)">One icon. Template, font, colour.</h3>
+			<p class="sp-big">Click the palette in the top bar. Every change is live, saved with the sheet, and carried into exports and share links.</p>
+			<ul class="sp-ticks">
+				<li><strong>Template:</strong> fourteen looks with live previews, professional ones first.</li>
+				<li><strong>Font:</strong> keep the template's, or pick Sans, Serif, Mono, Rounded, Humanist or Slab.</li>
+				<li><strong>Accent colour:</strong> eight colours to match a brand.</li>
 			</ul>
-			<div class="sp-btns"><span>Looks right</span><span>Adjust…</span></div>
-			<div class="sp-swatches"><i style="background:#4a3aa7"></i><i style="background:#0b7f9c"></i><i style="background:#e8590c"></i><i style="background:#2e7d4f"></i><i style="background:#d6336c"></i><i style="background:#8a5a2b"></i><i style="background:#111"></i><i style="background:#58a6ff"></i></div>
+		</div>
+		<figure class="reveal"><img src="assets/img/style-panel.jpg" width="1800" height="1125" alt="The style panel with the templates, fonts and accent colours." loading="lazy" decoding="async"></figure>
+	</div>
+</section>
+
+<!-- Excel is best -->
+<section class="sp-section sp-section--alt" id="excel">
+	<div class="wrap">
+		<div class="sp-head reveal">
+			<p class="sp-ref"><b>F6</b> For the best results</p>
+			<h2 class="sp-h2">Upload the Excel file, not a CSV.</h2>
+			<p class="sp-big">A CSV is only the final values. An Excel file keeps the formulas behind them, every tab and real dates, so SheetPilot can show how your numbers are calculated instead of guessing.</p>
+		</div>
+		<div class="sp-compare">
+			<div class="sp-opt sp-opt--best reveal"><span class="tag">Recommended</span><h3>Excel (.xlsx)</h3><p>From Google Sheets: File → Download → Microsoft Excel.</p><ul><li>Shows your real formulas, e.g. <code>=SUM([Quality]:[Teamwork])</code></li><li>Reads every tab, and skips empty template tabs</li><li>Keeps proper dates and number formats</li><li>Explains special cases, such as “N/A counts as 5”</li></ul></div>
+			<div class="sp-opt sp-opt--csv reveal"><h3>CSV or pasted cells</h3><p>Works, with less to go on.</p><ul><li>Values only: formulas are lost in the export</li><li>Calculations are inferred from the numbers</li><li>One sheet at a time</li><li>Dates may be ambiguous, so SheetPilot has to guess</li></ul></div>
 		</div>
 	</div>
 </section>
 
 <!-- Privacy -->
-<section class="fx-section" id="privacy">
+<section class="sp-section" id="privacy">
 	<div class="wrap">
-		<div class="fx-head reveal">
-			<span class="kicker">Private by design</span>
-			<h2 class="fx-h2">Your sheet stays on your computer.</h2>
+		<div class="sp-head reveal">
+			<p class="sp-ref"><b>G7</b> Private by design</p>
+			<h2 class="sp-h2">Your sheet stays on your computer.</h2>
 		</div>
-		<div class="fx-sec">
-			<div class="reveal"><h3>No upload</h3><p>Everything runs in your browser. Files are read on your device and never sent anywhere.</p></div>
-			<div class="reveal"><h3>No account</h3><p>Nothing to sign up for, and nothing to pay. Open it and drop a file.</p></div>
-			<div class="reveal"><h3>No tracking in the app</h3><p>This website counts visits anonymously. The app itself has no analytics, cookies or ads.</p></div>
-			<div class="reveal"><h3>Links you control</h3><p>A share link carries the data inside it, so only share what you're happy for the recipient to read.</p></div>
-			<div class="reveal"><h3>Safe snapshots</h3><p>Shared snapshots open in a sandbox with scripts switched off.</p></div>
-			<div class="reveal"><h3>Open source</h3><p>Read the code, run it yourself, or host it on your own site.</p></div>
+		<div class="sp-priv reveal">
+			<div><span class="r">G7 · 1</span><h3>No upload</h3><p>Everything runs in your browser. Files are read on your device and never sent anywhere.</p></div>
+			<div><span class="r">G7 · 2</span><h3>No account</h3><p>Nothing to sign up for, nothing to pay. Open it and drop a file.</p></div>
+			<div><span class="r">G7 · 3</span><h3>No tracking in the app</h3><p>This website counts visits anonymously. The app itself has no analytics, cookies or ads.</p></div>
+			<div><span class="r">G7 · 4</span><h3>Links you control</h3><p>A share link carries its data inside it, so only share what the recipient may read.</p></div>
+			<div><span class="r">G7 · 5</span><h3>Safe snapshots</h3><p>Shared snapshots open in a sandbox with scripts switched off.</p></div>
+			<div><span class="r">G7 · 6</span><h3>Open source</h3><p>Read the code, run it yourself, or host it on your own site.</p></div>
 		</div>
-		<p class="reveal" style="margin-top:28px"><a class="fx-link" href="docs/privacy-and-security/">Privacy and security, in detail →</a></p>
+		<p class="reveal" style="margin-top:24px"><a class="sp-link" href="docs/privacy-and-security/">Privacy and security, in detail →</a></p>
 	</div>
 </section>
 
 <!-- Story -->
-<section class="fx-story">
-	<div class="wrap fx-story__inner reveal">
-		<h2 class="fx-h2">Why SheetPilot exists</h2>
-		<p class="fx-big">Spreadsheets are where most small teams keep their customers, tickets, reviews and numbers. They're flexible and familiar, but they only store information; they don't tell you what it means.</p>
-		<p class="fx-big">Most dashboard tools ask you to rebuild your data in their format first. SheetPilot starts from the sheet you already have, works out its structure and logic, and gives you the story: free, in your browser, with nothing to set up.</p>
+<section class="sp-story sp-section--alt" style="border-block:1px solid var(--line)">
+	<div class="wrap sp-story__inner reveal">
+		<h2 class="sp-h2">Why SheetPilot exists</h2>
+		<p class="sp-big">Spreadsheets are where most small teams keep their customers, tickets, reviews and numbers. They're flexible and familiar, but they only store information; they don't tell you what it means.</p>
+		<p class="sp-big">Most dashboard tools ask you to rebuild your data in their format first. SheetPilot starts from the sheet you already have, works out its structure and logic, and gives you the story: free, in your browser, with nothing to set up.</p>
 	</div>
 </section>
 
 <!-- Call to action -->
-<section class="fx-cta">
-	<div class="fx-cta__cone" aria-hidden="true"></div>
-	<div class="wrap fx-cta__inner reveal">
-		<h2 class="fx-h2">Your spreadsheet. Now working for you.</h2>
-		<p class="fx-big">Free, open source, and ready in a few seconds.</p>
+<section class="sp-cta">
+	<div class="wrap reveal">
+		<h2 class="sp-h2">Your spreadsheet. Now working for you.</h2>
+		<p class="sp-big">Free, open source, and ready in a few seconds.</p>
 		<div class="cta-row">
-			<a class="btn btn-primary" href="app/">Open SheetPilot</a>
-			<a class="btn btn-ghost" href="https://github.com/george-stathopoulos/sheetpilot">View on GitHub</a>
+			<a class="btn btn-light" href="app/">Open SheetPilot</a>
+			<a class="btn btn-outline-light" href="https://github.com/george-stathopoulos/sheetpilot">View on GitHub</a>
 		</div>
-		<p class="fx-meta">CSV, Excel and pasted cells · Works in any modern browser · 1.0.0</p>
+		<p class="sp-meta">Excel (.xlsx) works best · CSV and pasted cells work too · 1.0.0</p>
 	</div>
 </section>
 
@@ -280,7 +266,7 @@
 	<div class="wrap">
 		<div class="foot-grid">
 			<div class="foot-about">
-				<a class="brand brand--logo" href="./" aria-label="SheetPilot home"><svg class="logo-mark" width="30" height="30" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="lg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#7a6cf0"/><stop offset="1" stop-color="#3b2d96"/></linearGradient></defs><rect width="64" height="64" rx="16" fill="url(#lg2)"/><g fill="#fff" fill-opacity=".28"><rect x="11" y="38" width="10" height="15" rx="2.5"/><rect x="26" y="31" width="10" height="22" rx="2.5"/><rect x="41" y="23" width="10" height="30" rx="2.5"/></g><path d="M54 10 14 27l15 6 6 17z" fill="#fff"/><path d="m29 33 25-23" stroke="#3b2d96" stroke-opacity=".45" stroke-width="2" fill="none"/><path d="m29 33 6 17 4-9z" fill="#ffb224"/></svg>
+				<a class="brand brand--logo" href="./" aria-label="SheetPilot home"><svg class="logo-mark" width="30" height="30" aria-hidden="true" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><linearGradient id="spg2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2bb673"/><stop offset="1" stop-color="#0d6a39"/></linearGradient><clipPath id="spc2"><rect width="64" height="64" rx="16"/></clipPath></defs><rect width="64" height="64" rx="16" fill="url(#spg2)"/><g clip-path="url(#spc2)" stroke="#fff" stroke-opacity=".16" stroke-width="1.6"><path d="M0 21.5h64M0 42.5h64M21.5 0v64M42.5 0v64"/></g><g fill="#fff" fill-opacity=".3"><rect x="11" y="38" width="10" height="15" rx="2.5"/><rect x="26" y="31" width="10" height="22" rx="2.5"/><rect x="41" y="23" width="10" height="30" rx="2.5"/></g><path d="M54 10 14 27l15 6 6 17z" fill="#fff"/><path d="m29 33 25-23" stroke="#0d6a39" stroke-opacity=".4" stroke-width="2" fill="none"/><path d="m29 33 6 17 4-9z" fill="#ffd54a"/></svg>
 <span class="logo-text">Sheet<b>Pilot</b></span></a>
 				<p>Turn any spreadsheet into an interactive dashboard, in your browser. It works out what's in your sheet and tells you what stands out. Free and open source.</p>
 			</div>
@@ -324,7 +310,7 @@
 		</div>
 	</div>
 </footer>
-<script src="assets/site.js?v=1.0.0.mv98pp3h" defer></script>
-<script src="assets/home.js?v=1.0.0.mv98pp3h" defer></script>
+<script src="assets/site.js?v=1.0.0.mv99h6bd" defer></script>
+<script src="assets/home.js?v=1.0.0.mv99h6bd" defer></script>
 </body>
 </html>
