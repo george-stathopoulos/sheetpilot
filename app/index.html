@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SheetPilot</title>
+<meta name="description" content="Turn any spreadsheet into an interactive dashboard, in your browser. Nothing is uploaded.">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">Sheet<b>Pilot</b></div>
+  <select id="wsSelect" title="Switch sheet"></select>
+  <div class="spacer"></div>
+  <button id="btnImport" class="primary">Import sheet</button>
+  <button id="btnOut">Export…</button>
+  <button id="btnShare">Share…</button>
+  <button id="btnDelete" class="danger">Delete sheet</button>
+</header>
+
+<nav class="tabs" id="tabs"></nav>
+
+<div id="sharebar"></div>
+<main id="main"></main>
+<div id="viewer" hidden></div>
+
+<aside id="drawer" class="drawer" hidden></aside>
+
+<dialog id="importDlg">
+  <form method="dialog" class="dlg">
+    <h2>Import a sheet</h2>
+    <p class="muted">Upload a CSV or Excel file, paste cells copied from Excel or Google Sheets, or start with a sample. Your data stays in this browser.</p>
+    <input type="file" id="fileIn" accept=".csv,.tsv,.txt,.xlsx,.xls">
+    <textarea id="pasteIn" rows="6" placeholder="…or paste cells here (first row = column names)"></textarea>
+    <input type="text" id="nameIn" placeholder="Name for this sheet (optional)">
+    <div class="row">
+      <button type="button" id="goImport" class="primary">Import</button>
+      <button value="cancel">Cancel</button>
+      <div class="spacer"></div>
+      <span class="muted">Samples:</span>
+      <button type="button" data-sample="customers">Customers</button>
+      <button type="button" data-sample="salaries">Salaries</button>
+      <button type="button" data-sample="tickets">Tickets</button>
+      <button type="button" data-sample="sales">Sales</button>
+      <button type="button" data-sample="reviews">Reviews</button>
+    </div>
+    <div id="importMsg" class="muted"></div>
+  </form>
+</dialog>
+
+<dialog id="outDlg"><form method="dialog" class="dlg" id="outForm"></form></dialog>
+
+<footer class="credit" id="credit"></footer>
+<script src="app.js"></script>
+</body>
+</html>
