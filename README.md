@@ -19,7 +19,7 @@
 
 ## Privacy
 
-Everything runs in your browser. Files are read on your device and kept only in your browser's storage. The app has no analytics, cookies or ads. See [Privacy and security](docs/privacy-and-security.md).
+Everything runs in your browser. Files are read on your device and kept only in your browser's storage. The app and website count visits anonymously with Cloudflare Web Analytics (page views only, no cookies, no personal data); the contents of your sheet are never sent, and share links do not load the counter. There are no ads. See [Privacy and security](docs/privacy-and-security.md).
 
 ## Documentation
 

@@ -5,8 +5,8 @@
 SheetPilot is a web page that runs entirely in your browser. When you import a file, it is read on your device. It is **not uploaded**, there is no account, and there is no server that receives your data.
 
 - Your sheets are stored in your browser's own storage on this computer only.
-- The app has **no analytics, no cookies and no ads**.
-- The project website, where you read this, counts visits anonymously with Cloudflare Web Analytics, with no cookies and no personal data. The app page does not include that counter.
+- The app has **no cookies and no ads**.
+- The website and the app count visits anonymously with Cloudflare Web Analytics: page views only, with no cookies and no personal data. **The contents of your sheet are never part of that.** Pages opened from a share link do not load the counter at all, because the link itself carries the shared data.
 - The Excel reader is loaded from a public CDN the first time you import an Excel file. That request does not contain your file.
 
 ## Sharing and exporting
