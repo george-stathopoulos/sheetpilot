@@ -258,6 +258,22 @@ const readableFormula = (s, f) => '=' + f.replace(/\$?([A-Z]{1,3})\$?\d+/g, (m, 
 
 /* ---------- profile: what is each column for? ---------- */
 const dist = (s, c) => new Set(s.rows.map(r => r.cells[c.name]).filter(v => v !== '' && v != null));
+const LOW_RE = /time|hours|days|duration|delay|cost|expense|spend|churn|error|bug|defect|complain|backlog|overdue|late|wait|refund|return|loss|risk|abandon|bounce/i;
+const HIGH_RE = /score|rating|satisf|revenue|sales|profit|mrr|arr|complete|conversion|retention|efficiency|csat|nps|performance|income|growth|margin/i;
+const SUM_RE = /revenue|sales|amount|total|cost|spend|budget|mrr|arr|quantity|units|orders|profit|expense|impressions|clicks|reach|calories|steps|billing|income|payment|stock/i;
+const AVG_RE = /salary|wage|price|rate|score|rating|age|duration|time|hours|days|%|percent|satisf|margin/i;
+const KEY_RE = /score|total|amount|value|revenue|salary|price|rating|cost|pay|mrr|sales|profit|budget|hours|time|spend|income/i;
+const EVENT_RE = /created|opened|order|start|submitted|timestamp|^date$|\bdate$|logged|sent|posted/i, NOT_EVENT_RE = /hire|birth|due|end|expire|resolv|clos|actual|renew|deadline|complet/i;
+
+// share of the variation in `meas` that is explained by differences between the groups of `dim` (0..1)
+function etaSq(rows, dim, meas) {
+  const groups = [...groupBy(rows, dim).values()].map(rs => rs.map(r => num(r.cells[meas])).filter(x => x != null)).filter(a => a.length >= 2);
+  if (groups.length < 2) return 0;
+  const all = groups.flat(), m = all.reduce((a, b) => a + b, 0) / all.length;
+  const sst = all.reduce((t, x) => t + (x - m) ** 2, 0); if (!sst) return 0;
+  return groups.reduce((t, a) => { const g = a.reduce((x, y) => x + y, 0) / a.length; return t + a.length * (g - m) ** 2; }, 0) / sst;
+}
+
 function profile(s) {
   const rules = discoverLogic(s);
   const filled = c => s.rows.filter(r => r.cells[c.name] !== '' && r.cells[c.name] != null).length;
@@ -275,18 +291,50 @@ function profile(s) {
   const isCrit = c => criteria.includes(c.name);
   const constants = s.columns.filter(c => stat[c.name].n > 0 && stat[c.name].d === 1 && c.type !== 'longtext');
   const isConst = c => constants.includes(c);
-  const measures = s.columns.filter(c => isNumT(c.type) && !isCrit(c) && !isConst(c) && stat[c.name].n >= 3);
-  const nameHit = c => /score|total|amount|value|revenue|salary|price|rating|cost|pay/i.test(c.name);
-  const primary = (measures.find(c => c.type === 'percent') || measures.find(nameHit) || (rules.length ? measures.find(c => c.name === rules.at(-1).col) : null) || measures[0] || null)?.name || '';
-  const dims = s.columns.filter(c => ['text', 'status'].includes(c.type) && !isConst(c) && stat[c.name].d >= 2 && stat[c.name].d <= 30 && (c.type === 'status' || stat[c.name].n / stat[c.name].d >= 1.5)).map(c => c.name);
-  const primaryDim = dims.find(n => /name|agent|employee|owner|rep|team|dept|department|region|category|status|stage|type|plan/i.test(n)) || dims[0] || '';
-  const time = s.columns.find(c => c.type === 'date' && stat[c.name].d >= 3)?.name || '';
+  const idLike = c => isNumT(c.type) && stat[c.name].n >= 20 && stat[c.name].d === stat[c.name].n && /(^|\W)(id|no|nr|number|code|index)(\W|$)|#/i.test(c.name);
+  const allNum = s.columns.filter(c => isNumT(c.type) && !isConst(c) && stat[c.name].n >= 3 && !idLike(c));
+  const measures = allNum.filter(c => !isCrit(c));
+  const lastRule = rules.at(-1)?.col;
+  const rankedM = measures.map(c => ({ c, sc: (c.type === 'percent' ? 3 : 0) + (KEY_RE.test(c.name) ? 3 : 0) + (c.type === 'money' ? 1 : 0) + (c.name === lastRule ? 1 : 0) + stat[c.name].n / s.rows.length }))
+    .sort((a, b) => b.sc - a.sc);
+  const ov = s.roles || {};
+  const autoMeasure = rankedM[0]?.c.name || '';
+  const measure = ov.measure && allNum.some(c => c.name === ov.measure) ? ov.measure : autoMeasure;
+  const mc = s.columns.find(c => c.name === measure);
+  const autoAgg = !mc ? 'count' : (SUM_RE.test(mc.name) && !AVG_RE.test(mc.name)) || (mc.type === 'money' && !AVG_RE.test(mc.name)) ? 'sum' : 'avg';
+  const autoPol = !mc ? 'neutral' : LOW_RE.test(mc.name) ? 'low' : HIGH_RE.test(mc.name) ? 'high' : 'neutral';
+  // group-by candidates, best first: the column whose groups differ most on the chosen measure
+  const dimsAll = s.columns.filter(c => ['text', 'status'].includes(c.type) && !isConst(c) && stat[c.name].d >= 2 && stat[c.name].d <= 30 && (c.type === 'status' || stat[c.name].n / stat[c.name].d >= 1.5)).map(c => c.name);
+  const eta = {}; dimsAll.forEach(d => { eta[d] = measure ? etaSq(s.rows, d, measure) : 0; });
+  const dimScore = d => eta[d] * (stat[d].d > 20 ? .7 : 1) + (/name|agent|employee|owner|team|dept|department|region|category|status|stage|type|plan/i.test(d) ? .02 : 0);
+  const dims = dimsAll.slice().sort((a, b) => dimScore(b) - dimScore(a));
+  const autoDim = dims[0] || '';
+  const dim = ov.dim && dims.includes(ov.dim) ? ov.dim : autoDim;
+  const times = s.columns.filter(c => c.type === 'date' && stat[c.name].d >= 3).map(c => ({ n: c.name, sc: (EVENT_RE.test(c.name) && !NOT_EVENT_RE.test(c.name) ? 3 : 0) - (NOT_EVENT_RE.test(c.name) ? 1 : 0) + Math.min(stat[c.name].d, 30) / 30 })).sort((a, b) => b.sc - a.sc);
+  const autoTime = times[0]?.n || '';
+  const time = ov.time && times.some(t => t.n === ov.time) ? ov.time : autoTime;
+  const roles = { measure, agg: ov.agg || autoAgg, polarity: ov.polarity || autoPol, dim, time };
+  const unsure = {
+    measure: rankedM.length > 1 && rankedM[0].sc - rankedM[1].sc <= 1,
+    dim: dims.length > 1 && dimScore(dims[0]) - dimScore(dims[1]) < .02,
+    time: times.length > 1 && times[0].sc - times[1].sc < 1
+  };
+  // data-quality notes
+  const dq = [];
+  s.columns.forEach(c => {
+    const blank = 1 - stat[c.name].n / (s.rows.length || 1);
+    if (blank >= .3 && blank < 1 && c.type !== 'longtext') dq.push(`${c.name} is empty in ${Math.round(blank * 100)}% of rows.`);
+    if (isNumT(c.type)) { const bad = s.rows.filter(r => r.cells[c.name] !== '' && num(r.cells[c.name]) == null); if (bad.length) dq.push(`${c.name} has ${bad.length} non-numeric entr${bad.length > 1 ? 'ies' : 'y'} (e.g. “${bad[0].cells[c.name]}”) that are ignored in calculations.`); }
+  });
+  if (/id|number|ticket|order|ref/i.test(s.titleCol) && stat[s.titleCol] && stat[s.titleCol].d < stat[s.titleCol].n) dq.push(`${stat[s.titleCol].n - stat[s.titleCol].d} rows repeat a ${s.titleCol} value used elsewhere.`);
+  rules.filter(r => r.bad.length).forEach(r => dq.push(`${r.text}: ${r.bad.length} of ${r.checked} rows break this rule.`));
   return {
-    rules, criteria, constants, measures, primary, dims, primaryDim, time, stat,
+    rules, criteria, constants, measures, allNum, dims, stat, eta, roles, dq, unsure,
+    auto: { measure: autoMeasure, agg: autoAgg, polarity: autoPol, dim: autoDim, time: autoTime },
+    times: times.map(t => t.n),
     bools: s.columns.filter(c => c.type === 'bool' && !isConst(c)),
     longs: s.columns.filter(c => c.type === 'longtext'),
-    links: s.columns.filter(c => c.type === 'link'),
-    allNum: s.columns.filter(c => isNumT(c.type) && !isConst(c) && stat[c.name].n >= 3)
+    links: s.columns.filter(c => c.type === 'link')
   };
 }
 
@@ -353,18 +401,75 @@ function lineChart(points, fmt) {
     <text x="4" y="${Y(hi) + 4}" class="ax">${fmt(hi)}</text>${hi !== lo ? `<text x="4" y="${Y(lo) + 4}" class="ax">${fmt(lo)}</text>` : ''}</svg>`;
 }
 
+const POL = { high: 'Higher is better', low: 'Lower is better', neutral: 'No good or bad direction' };
+function timeSeries(rows, timeC, mc, agg) {
+  const days = new Set(rows.map(r => r.cells[timeC.name]).filter(Boolean));
+  let cut = days.size > 40 ? 7 : 10; // group by month when there are many days...
+  if (cut === 7 && new Set([...days].map(d => d.slice(0, 7))).size > 48) cut = 4; // ...and by year for very long spans
+  const buckets = new Map(); rows.forEach(r => { const d = r.cells[timeC.name]; if (!d) return; const k = d.slice(0, cut); (buckets.get(k) || buckets.set(k, []).get(k)).push(r); });
+  const points = [...buckets].map(([k, rs]) => ({ l: k, v: aggregate(rs, mc.name, agg), n: rs.length })).filter(x => x.v != null).sort((a, b) => a.l < b.l ? -1 : 1);
+  return { points, cut };
+}
+const pct = x => `${(x * 100).toFixed(x < .1 ? 1 : 0)}%`;
+
+function findings(s, P, rows, g, series) {
+  const { measure, agg, polarity, dim, time } = P.roles; const mc = s.columns.find(c => c.name === measure);
+  const fv = v => fmtVal(mc, v), F = [];
+  const link = (d, k) => `<a data-act="fdim" data-c="${esc(d)}" data-v="${esc(k)}">${esc(k)}</a>`;
+  if (mc && dim && g.length >= 2) {
+    const hi = g[0], lo = g.at(-1), e = etaSq(rows, dim, mc.name);
+    if (agg === 'sum') {
+      const tot = g.reduce((t, x) => t + x.v, 0);
+      if (tot > 0) F.push(`${link(dim, hi.k)} is the largest ${esc(dim)}: ${pct(hi.v / tot)} of total ${esc(mc.name)} (${hi.rs.length} of ${rows.length} rows).`);
+    } else if (agg === 'avg' && polarity !== 'neutral') {
+      const best = polarity === 'high' ? hi : lo, worst = polarity === 'high' ? lo : hi;
+      F.push(`Best ${esc(dim)} on average ${esc(mc.name)}: ${link(dim, best.k)} (${fv(best.v)}); worst: ${link(dim, worst.k)} (${fv(worst.v)}).`);
+    } else if (agg === 'avg') {
+      F.push(lo.v && hi.v / lo.v >= 1.05 ? `Average ${esc(mc.name)} ranges from ${link(dim, lo.k)} (${fv(lo.v)}) to ${link(dim, hi.k)} (${fv(hi.v)}).` : `${esc(dim)} makes little difference to average ${esc(mc.name)}.`);
+    }
+    F.push(e >= .1 ? `${esc(dim)} explains ${pct(e)} of the variation in ${esc(mc.name)}.` : `No single ${esc(dim)} stands out: it explains only ${pct(e)} of the variation in ${esc(mc.name)}.`);
+  }
+  if (mc && series && series.points.length >= 6) {
+    const p = series.points, t = Math.floor(p.length / 3), mean = a => a.reduce((x, y) => x + y.v, 0) / a.length, a = mean(p.slice(0, t)), b = mean(p.slice(-t));
+    if (a && Math.abs((b - a) / a) >= .1) F.push(`${AGGS[agg]} ${esc(mc.name)} ${b > a ? 'rose' : 'fell'} ${pct(Math.abs((b - a) / a))} from the first to the last third of ${esc(time)}.`);
+  }
+  P.bools.slice(0, 2).forEach(b => {
+    const rate = rs => rs.filter(r => /^(true|yes)$/i.test(r.cells[b.name])).length / (rs.length || 1);
+    let t = `${esc(b.name)} is true for ${pct(rate(rows))} of rows`;
+    if (dim) { const gr = [...groupBy(rows, dim)].filter(([, rs]) => rs.length >= 10).map(([k, rs]) => ({ k, v: rate(rs) })).sort((x, y) => y.v - x.v); if (gr.length >= 2 && gr[0].v - gr.at(-1).v >= .1) t += `; highest for ${link(dim, gr[0].k)} (${pct(gr[0].v)}), lowest for ${link(dim, gr.at(-1).k)} (${pct(gr.at(-1).v)})`; }
+    F.push(t + '.');
+  });
+  if (mc) {
+    const v = rows.map(r => ({ r, v: num(r.cells[mc.name]) })).filter(x => x.v != null).sort((x, y) => x.v - y.v);
+    if (v.length >= 20) {
+      const q = f => v[Math.floor(f * (v.length - 1))].v, q1 = q(.25), q3 = q(.75), iqr = q3 - q1;
+      const out = v.filter(x => iqr > 0 && (x.v > q3 + 3 * iqr || x.v < q1 - 3 * iqr));
+      if (out.length && out.length <= .03 * v.length) F.push(`${out.length} row${out.length > 1 ? 's are' : ' is'} an extreme outlier on ${esc(mc.name)}, e.g. <a data-act="open" data-r="${out.at(-1).r.id}">${esc(title(s, out.at(-1).r))}</a> (${fv(out.at(-1).v)}).`);
+    }
+  }
+  return F;
+}
+
 function viewDash(s) {
   const P = profile(s), rows = filteredRows(s), total = s.rows.length;
-  const mc = s.columns.find(c => c.name === (ui.measure || P.primary)) && (ui.measure || P.primary) ? s.columns.find(c => c.name === (ui.measure || P.primary)) : null;
-  const dim = P.dims.includes(ui.dim) ? ui.dim : P.primaryDim;
-  const agg = mc ? (ui.agg || (mc.type === 'money' ? 'sum' : 'avg')) : 'count';
+  const { measure, agg, polarity, dim, time } = P.roles;
+  const mc = s.columns.find(c => c.name === measure) || null, timeC = s.columns.find(c => c.name === time) || null;
   const aggName = mc ? `${AGGS[agg]} ${mc.name}` : 'Rows';
   const fv = v => mc ? fmtVal(mc, v) : fmtNum(v);
   const nActive = Object.keys(ui.f).length;
+  const groups = dim ? [...groupBy(rows, dim)].map(([k, rs]) => ({ k, rs, v: aggregate(rs, mc ? mc.name : '', mc ? agg : 'count') })).filter(x => x.v != null).sort((a, b) => b.v - a.v) : [];
+  const series = timeC && mc ? timeSeries(rows, timeC, mc, agg) : null;
   let h = '';
 
+  // review banner
+  const un = k => P.unsure[k] ? ' <span class="badge amber">unsure</span>' : '';
+  if (!s.reviewed) h += `<div class="card review"><b>How I read your sheet</b> <span class="muted">— check this looks right</span><ul>
+    <li>Each row is named by <b>${esc(s.titleCol)}</b></li>
+    <li>${mc ? `Main number: <b>${esc(mc.name)}</b>, shown as ${agg === 'sum' ? 'a total' : 'an average'}; ${esc(POL[polarity].toLowerCase())}` : 'No main number found, so rows are counted'}${un('measure')}</li>
+    ${dim ? `<li>Compared by: <b>${esc(dim)}</b>${un('dim')}</li>` : ''}${timeC ? `<li>Timeline: <b>${esc(timeC.name)}</b>${un('time')}</li>` : ''}</ul>
+    <div class="row"><button class="primary" data-act="reviewed">Looks right</button><button data-tab-go="setup">Adjust…</button><span class="muted">You can change any of this later in Setup, or with the dropdowns on the charts.</span></div></div>`;
+
   // header summary
-  const timeC = s.columns.find(c => c.name === P.time);
   const dates = timeC ? rows.map(r => r.cells[timeC.name]).filter(Boolean).sort() : [];
   h += `<div class="summary"><b>${rows.length}${nActive ? ` of ${total}` : ''} rows</b>${dates.length ? ` · ${esc(timeC.name)}: ${esc(dates[0])} → ${esc(dates.at(-1))}` : ''}${P.constants.length ? `<div class="muted">Same on every row: ${P.constants.map(c => `${esc(c.name)} = ${esc(s.rows.find(r => r.cells[c.name] !== '')?.cells[c.name])}`).join(' · ')}</div>` : ''}</div>`;
 
@@ -375,73 +480,71 @@ function viewDash(s) {
   // KPI cards
   const cards = [`<div class="card"><div class="n">${rows.length}</div>Rows</div>`];
   if (mc) {
-    const money = mc.type === 'money';
-    const kp = money ? [['sum', 'Total'], ['avg', 'Average']] : [['avg', 'Average'], ['min', 'Lowest'], ['max', 'Highest']];
+    const kp = agg === 'sum' ? [['sum', 'Total'], ['avg', 'Average']] : [['avg', 'Average'], ['min', 'Lowest'], ['max', 'Highest']];
     kp.forEach(([a, l]) => cards.push(`<div class="card"><div class="n">${fmtVal(mc, aggregate(rows, mc.name, a))}</div>${l} ${esc(mc.name)}</div>`));
   }
-  P.measures.filter(c => c !== mc).slice(0, 2).forEach(c => { const a = c.type === 'money' ? 'sum' : 'avg'; cards.push(`<div class="card"><div class="n">${fmtVal(c, aggregate(rows, c.name, a))}</div>${AGGS[a]} ${esc(c.name)}</div>`); });
+  P.measures.filter(c => c !== mc).slice(0, 2).forEach(c => { const a = SUM_RE.test(c.name) && !AVG_RE.test(c.name) ? 'sum' : 'avg'; cards.push(`<div class="card"><div class="n">${fmtVal(c, aggregate(rows, c.name, a))}</div>${AGGS[a]} ${esc(c.name)}</div>`); });
   P.bools.slice(0, 3).forEach(c => { const t = rows.filter(r => /^(true|yes)$/i.test(r.cells[c.name])).length; cards.push(`<div class="card ${t ? 'green' : ''}"><div class="n">${t}<span class="muted"> / ${rows.length}</span></div>${esc(c.name)}</div>`); });
   P.longs.slice(0, 2).forEach(c => cards.push(`<div class="card"><div class="n">${rows.filter(r => r.cells[c.name]).length}</div>Rows with ${esc(c.name)}</div>`));
   if (s.watches.length) { const a = analyse(s); cards.push(`<div class="card ${a.overdue.length ? 'red' : ''}" data-tab-go="rem" style="cursor:pointer"><div class="n">${a.overdue.length}</div>Overdue reminders</div>`); }
   h += `<div class="cards">${cards.join('')}</div>`;
 
+  // findings
+  const F = findings(s, P, rows, groups, series);
+  if (F.length) h += `<h2>Key findings</h2><div class="card"><ul class="logic">${F.map(f => `<li>${f}</li>`).join('')}</ul></div>`;
+
   // grouped bars
-  if (dim) {
-    const g = [...groupBy(rows, dim)].map(([k, rs]) => ({ k, rs, v: aggregate(rs, mc ? mc.name : '', agg) })).filter(x => x.v != null).sort((a, b) => b.v - a.v).slice(0, 25);
-    const max = Math.max(...g.map(x => Math.abs(x.v)), 1e-9);
-    h += `<h2>${esc(aggName)} by ${esc(dim)}</h2><div class="tools"><select data-ui="agg">${opts(Object.entries(AGGS).filter(([k]) => mc || k === 'count'), agg)}</select><select data-ui="measure">${opts(P.allNum.map(c => [c.name]), mc?.name)}</select><span class="muted">by</span><select data-ui="dim">${opts(P.dims.map(d => [d]), dim)}</select><span class="muted">click a bar to filter</span></div>
-      <div class="list bars">${g.map(x => `<div class="brow ${ui.f[dim] === x.k ? 'on' : ''}" data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}"><div class="bl">${esc(x.k)}</div><div class="bt"><div class="bar" style="width:${Math.abs(x.v) / max * 100}%"></div></div><div class="bv">${fv(x.v)} <span class="muted">(${x.rs.length})</span></div></div>`).join('') || '<div class="empty">No data.</div>'}</div>`;
+  if (dim && groups.length >= 2) {
+    const g = groups.slice(0, 25), max = Math.max(...g.map(x => Math.abs(x.v)), 1e-9);
+    const cls = (x, i) => { if (polarity === 'neutral' || !mc || agg === 'count' || g.length < 3) return ''; if (i === 0) return polarity === 'high' ? 'best' : 'worst'; if (i === g.length - 1) return polarity === 'high' ? 'worst' : 'best'; return ''; };
+    h += `<h2>${esc(aggName)} by ${esc(dim)}</h2><div class="tools"><select data-role="agg">${opts(Object.entries(AGGS).filter(([k]) => mc || k === 'count'), agg)}</select><select data-role="measure">${opts(P.allNum.map(c => [c.name]), mc?.name)}</select><span class="muted">by</span><select data-role="dim">${opts(P.dims.map(d => [d]), dim)}</select><select data-role="polarity" title="Used for colouring and the attention list">${opts(Object.entries(POL), polarity)}</select></div>
+      <div class="list bars">${g.map((x, i) => `<div class="brow ${ui.f[dim] === x.k ? 'on' : ''}" data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}"><div class="bl">${esc(x.k)}</div><div class="bt"><div class="bar ${cls(x, i)}" style="width:${Math.abs(x.v) / max * 100}%"></div></div><div class="bv">${fv(x.v)} <span class="muted">(${x.rs.length})</span></div></div>`).join('')}</div><p class="muted">Click a bar to filter the page.${polarity !== 'neutral' && mc && agg !== 'count' ? ' Green = best, red = worst.' : ''}</p>`;
   }
 
   // trend
-  if (timeC && mc) {
-    const days = new Set(rows.map(r => r.cells[timeC.name]).filter(Boolean));
-    let cut = days.size > 40 ? 7 : 10; // group by month when there are many days...
-    if (cut === 7 && new Set([...days].map(d => d.slice(0, 7))).size > 48) cut = 4; // ...and by year for very long spans
-    const buckets = new Map(); rows.forEach(r => { const d = r.cells[timeC.name]; if (!d) return; const k = d.slice(0, cut); (buckets.get(k) || buckets.set(k, []).get(k)).push(r); });
-    const byDay = [...buckets].map(([k, rs]) => ({ l: k, v: aggregate(rs, mc.name, agg), n: rs.length })).filter(x => x.v != null).sort((a, b) => a.l < b.l ? -1 : 1);
-    if (byDay.length >= 2) h += `<h2>${esc(aggName)} over ${esc(timeC.name)}${cut < 10 ? ` (by ${cut === 7 ? 'month' : 'year'})` : ''}</h2><div class="card">${lineChart(byDay, fv)}</div>`;
-  }
+  if (series && series.points.length >= 3 && new Set(series.points.map(p => p.v)).size > 1)
+    h += `<h2>${esc(aggName)} over ${esc(timeC.name)}${series.cut < 10 ? ` (by ${series.cut === 7 ? 'month' : 'year'})` : ''}</h2><div class="card">${lineChart(series.points, fv)}</div>`;
 
   // heatmap of criteria
-  if (P.criteria.length >= 2) {
+  if (P.criteria.length >= 2 && dim && groups.length >= 2) {
     const cc = P.criteria.map(n => s.columns.find(c => c.name === n)); const all = cc.flatMap(c => rows.map(r => num(r.cells[c.name]))).filter(x => x != null); const top = Math.max(...all, 1);
     const cell = rs => (c) => { const v = aggregate(rs, c.name, 'avg'); return v == null ? '<td>–</td>' : `<td style="background:hsla(${Math.max(0, Math.min(1, v / top)) ** 2 * 120},70%,45%,.38)">${fmtNum(v)}</td>`; };
-    const groups = dim ? [...groupBy(rows, dim)].sort((a, b) => String(a[0]).localeCompare(String(b[0]))).slice(0, 40) : [];
-    h += `<h2>${esc(P.rules.find(r => r.kind === 'sum')?.col ? 'Breakdown of ' + P.rules.find(r => r.kind === 'sum').col : 'Criteria')}${dim ? ` by ${esc(dim)}` : ''}</h2><div class="tablewrap"><table class="heat"><thead><tr><th>${esc(dim || '')}</th>${cc.map(c => `<th title="${esc(c.desc)}">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+    const gl = groups.slice().sort((a, b) => String(a.k).localeCompare(String(b.k))).slice(0, 40);
+    h += `<h2>${esc(P.rules.find(r => r.kind === 'sum')?.col ? 'Breakdown of ' + P.rules.find(r => r.kind === 'sum').col : 'Criteria')} by ${esc(dim)}</h2><div class="tablewrap"><table class="heat"><thead><tr><th>${esc(dim)}</th>${cc.map(c => `<th title="${esc(c.desc)}">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
       <tr class="all"><td><b>All (${rows.length})</b></td>${cc.map(cell(rows)).join('')}</tr>
-      ${groups.map(([k, rs]) => `<tr class="${ui.f[dim] === k ? 'on' : ''}"><td><a data-act="fdim" data-c="${esc(dim)}" data-v="${esc(k)}">${esc(k)}</a> <span class="muted">(${rs.length})</span></td>${cc.map(cell(rs)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">Colour: green = high, red = low. Hover a column title for its description.</p>`;
+      ${gl.map(x => `<tr class="${ui.f[dim] === x.k ? 'on' : ''}"><td><a data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}">${esc(x.k)}</a> <span class="muted">(${x.rs.length})</span></td>${cc.map(cell(x.rs)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">Colour: green = high, red = low. Hover a column title for its description.</p>`;
   }
 
   // distribution
   if (mc) {
     const vals = rows.map(r => num(r.cells[mc.name])).filter(x => x != null);
-    if (vals.length >= 3) {
-      const lo = Math.min(...vals), hi = Math.max(...vals), distinct = [...new Set(vals)].sort((a, b) => a - b);
-      let bins;
+    const distinct = [...new Set(vals)].sort((a, b) => a - b);
+    if (vals.length >= 3 && distinct.length >= 2) {
+      const lo = distinct[0], hi = distinct.at(-1); let bins;
       if (distinct.length <= 8) bins = distinct.map(v => ({ l: fmtVal(mc, v), n: vals.filter(x => x === v).length }));
-      else { const w = (hi - lo) / 8; bins = Array.from({ length: 8 }, (_, i) => ({ a: lo + i * w, b: lo + (i + 1) * w, l: fmtNum(lo + i * w) })); vals.forEach(v => { bins[Math.min(7, Math.floor((v - lo) / w))].n = (bins[Math.min(7, Math.floor((v - lo) / w))].n || 0) + 1; }); bins.forEach(b => { b.n ||= 0; }); }
+      else { const w = (hi - lo) / 8; bins = Array.from({ length: 8 }, (_, i) => ({ l: fmtNum(lo + i * w), n: 0 })); vals.forEach(v => { bins[Math.min(7, Math.floor((v - lo) / w))].n++; }); }
       const mx = Math.max(...bins.map(b => b.n), 1);
       h += `<h2>Distribution of ${esc(mc.name)}</h2><div class="card"><div class="hist">${bins.map(b => `<div class="hcol"><div class="hn">${b.n}</div><div class="hbar" style="height:${b.n / mx * 100}px"></div><div class="hl">${esc(b.l)}</div></div>`).join('')}</div></div>`;
     }
   }
 
-  // attention list
+  // attention list (direction-aware)
   if (mc) {
-    const money = mc.type === 'money';
-    const list = rows.map(r => ({ r, v: num(r.cells[mc.name]) })).filter(x => x.v != null).sort((a, b) => money ? b.v - a.v : a.v - b.v).slice(0, 5);
+    const worstHigh = polarity !== 'high';
+    const list = rows.map(r => ({ r, v: num(r.cells[mc.name]) })).filter(x => x.v != null).sort((a, b) => worstHigh ? b.v - a.v : a.v - b.v).slice(0, 5);
     const long = P.longs[0];
-    h += `<h2>${money ? 'Highest' : 'Lowest'} ${esc(mc.name)}</h2><div class="list">${list.map(x => `<div class="item"><div class="t"><a data-act="open" data-r="${x.r.id}">${esc(title(s, x.r))}</a>${long ? `<div class="muted">${esc((x.r.cells[long.name] || '').slice(0, 160))}${(x.r.cells[long.name] || '').length > 160 ? '…' : ''}</div>` : ''}</div><span class="badge">${fmtVal(mc, x.v)}</span></div>`).join('') || '<div class="empty">Nothing here.</div>'}</div>`;
+    h += `<h2>${worstHigh ? 'Highest' : 'Lowest'} ${esc(mc.name)}${polarity === 'neutral' ? '' : ' — needs attention'}</h2><div class="list">${list.map(x => `<div class="item"><div class="t"><a data-act="open" data-r="${x.r.id}">${esc(title(s, x.r))}</a>${long ? `<div class="muted">${esc((x.r.cells[long.name] || '').slice(0, 160))}${(x.r.cells[long.name] || '').length > 160 ? '…' : ''}</div>` : ''}</div><span class="badge">${fv(x.v)}</span></div>`).join('') || '<div class="empty">Nothing here.</div>'}</div>`;
   }
 
-  // logic
+  // checks + logic
   h += `<h2>How this sheet works</h2><details class="card" open><summary>What SheetPilot understood</summary>
     <ul class="logic">
-    <li>Each row is labelled by <b>${esc(s.titleCol)}</b>${P.primary ? `; main number: <b>${esc(P.primary)}</b>` : ''}${P.criteria.length ? `; ${P.criteria.length} scored criteria` : ''}${P.time ? `; timeline: <b>${esc(P.time)}</b>` : ''}.</li>
+    <li>Each row is labelled by <b>${esc(s.titleCol)}</b>${mc ? `; main number: <b>${esc(mc.name)}</b>` : ''}${P.criteria.length ? `; ${P.criteria.length} scored criteria` : ''}${timeC ? `; timeline: <b>${esc(timeC.name)}</b>` : ''}.</li>
     ${P.dims.length ? `<li>Can be grouped by: ${P.dims.map(esc).join(', ')}.</li>` : ''}
     ${s.columns.filter(c => c.formula).map(c => `<li><b>${esc(c.name)}</b> is calculated in your file by <code>${esc(readableFormula(s, c.formula))}</code></li>`).join('')}
     ${P.rules.filter(r => !s.columns.find(c => c.name === r.col)?.formula).map(r => `<li>${esc(r.text)} <span class="badge ${r.bad.length ? 'amber' : 'green'}">${r.bad.length ? `${r.bad.length} of ${r.checked} rows differ` : `holds in all ${r.checked} rows`}</span>${r.bad.length ? ' ' + r.bad.slice(0, 5).map(id => `<a data-act="open" data-r="${id}">${esc(title(s, s.rows.find(x => x.id === id)))}</a>`).join(', ') : ''}</li>`).join('')}
-    </ul>${P.rules.length && !s.columns.some(c => c.formula) && !s.fromXlsx ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}</details>`;
+    </ul>${P.rules.length && !s.columns.some(c => c.formula) && !s.fromXlsx ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}
+    ${P.dq.length ? `<b>Data checks</b><ul class="logic">${P.dq.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</details>`;
   return h;
 }
 
@@ -504,10 +607,22 @@ function viewTable(s) {
 }
 
 /* --- setup --- */
+function setupAnalysis(s) {
+  const P = profile(s), a = P.auto, r = s.roles || {};
+  const sel = (key, label, options, autoLabel) => `<label>${label}<select data-role="${key}"><option value="">Auto${autoLabel ? ` (${esc(autoLabel)})` : ''}</option>${options.map(([v, l]) => `<option value="${esc(v)}" ${r[key] === v ? 'selected' : ''}>${esc(l ?? v)}</option>`).join('')}</select></label>`;
+  return `<div class="card"><b>How SheetPilot reads this sheet</b><div class="muted">Everything is chosen automatically. Override anything that looks wrong.</div><div class="setup" style="margin-top:10px">
+    ${sel('measure', 'Main number', P.allNum.map(c => [c.name]), a.measure || 'none')}
+    ${sel('agg', 'Show it as', [['avg', 'Average'], ['sum', 'Total'], ['max', 'Highest'], ['min', 'Lowest']], AGGS[a.agg])}
+    ${sel('polarity', 'Which direction is good?', Object.entries(POL), POL[a.polarity])}
+    ${sel('dim', 'Compare by', P.dims.map(d => [d]), a.dim || 'none')}
+    ${sel('time', 'Timeline', P.times.map(d => [d]), a.time || 'none')}
+    <button data-act="resetroles">Reset to automatic</button></div></div>`;
+}
 function viewSetup(s) {
   const o = (sel, filter = () => true, none = '— none —') => `<option value="">${none}</option>` + s.columns.filter(filter).map(c => `<option ${c.name === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const dates = s.columns.filter(c => c.type === 'date');
   return `<div class="setup">
+    ${setupAnalysis(s)}
     <p class="muted">The Dashboard builds itself from the column types below. Reminders are optional: use them for sheets with follow-up or review dates.</p>
     <label>Sheet name<input data-set="name" value="${esc(s.name)}"></label>
     <label>Title column <span>Names each row in lists.</span><select data-set="titleCol">${o(s.titleCol, () => true, '—')}</select></label>
@@ -574,6 +689,8 @@ document.addEventListener('click', e => {
     case 'close': ui.drawer = null; renderDrawer(); break;
     case 'fdim': { const c = a.dataset.c, v = a.dataset.v; if (ui.f[c] === v) delete ui.f[c]; else ui.f[c] = v; render(); break; }
     case 'clearf': ui.f = {}; render(); break;
+    case 'resetroles': delete s.roles; save(); render(); break;
+    case 'reviewed': s.reviewed = true; save(); render(); break;
     case 'handled': r.handled ||= {}; r.handled[a.dataset.w] = parseDate(r.cells[a.dataset.w]); r.touched = new Date().toISOString(); save(); render(); break;
     case 'snooze': { const d = parseDate(r.cells[a.dataset.w]); r.cells[a.dataset.w] = addDays(d, 7); save(); render(); break; }
     case 'addrow': { const row = { id: uid(), touched: new Date().toISOString(), notes: [], handled: {}, cells: Object.fromEntries(s.columns.map(c => [c.name, ''])) }; s.rows.unshift(row); ui.sort = null; save(); render(); break; }
@@ -588,7 +705,12 @@ document.addEventListener('change', e => {
   const t = e.target, s = sheet(); if (!s) return;
   if (t.id === 'sf') { ui.sf = t.value; render(); }
   else if (t.dataset.fsel) { if (t.value) ui.f[t.dataset.fsel] = t.value; else delete ui.f[t.dataset.fsel]; render(); }
-  else if (t.dataset.ui) { ui[t.dataset.ui] = t.value; if (t.dataset.ui === 'measure') ui.agg = ''; render(); }
+  else if (t.dataset.role) {
+    const k = t.dataset.role; s.roles ||= {};
+    if (t.value) s.roles[k] = t.value; else delete s.roles[k];
+    if (k === 'measure') { delete s.roles.agg; delete s.roles.polarity; } // follow the new measure's defaults
+    save(); render();
+  }
   else if (t.dataset.set) { s[t.dataset.set] = t.dataset.set === 'staleDays' ? Math.max(0, +t.value || 0) : t.value; save(); render(); }
   else if (t.dataset.watch) {
     const col = t.dataset.watch;

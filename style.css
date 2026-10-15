@@ -64,3 +64,5 @@ svg.line{width:100%;height:auto}.ax{font-size:11px;fill:var(--muted)}
 .logic{margin:8px 0 0;padding-left:20px}.logic li{margin:6px 0}
 details summary{cursor:pointer;font-weight:600}
 a[data-act]{cursor:pointer;color:var(--accent)}
+.bar.best{background:var(--green)}.bar.worst{background:var(--red)}
+.review{border-color:var(--accent);margin-bottom:14px}.review ul{margin:8px 0 10px;padding-left:20px}
