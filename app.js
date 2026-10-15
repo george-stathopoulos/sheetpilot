@@ -7,10 +7,12 @@ const uid = () => Math.random().toString(36).slice(2, 10);
 
 /* ---------- state ---------- */
 let state = { sheets: [], current: null };
-let ui = { tab: 'today', sort: null, q: '', sf: '', drawer: null };
+const freshUI = tab => ({ tab: tab || 'dash', sort: null, q: '', sf: '', drawer: null, f: {}, dim: '', measure: '', agg: '' });
+let ui = freshUI();
 try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
 const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
 const sheet = () => state.sheets.find(s => s.id === state.current);
+const isNumT = t => t === 'number' || t === 'money' || t === 'percent';
 
 /* ---------- dates & numbers ---------- */
 const pad = n => String(n).padStart(2, '0');
@@ -19,34 +21,42 @@ const todayISO = () => isoOf(new Date());
 const toUTC = iso => { const [y, m, d] = iso.split('-').map(Number); return Date.UTC(y, m - 1, d); };
 const addDays = (iso, n) => new Date(toUTC(iso) + n * 864e5).toISOString().slice(0, 10);
 const diffDays = (a, b) => Math.round((toUTC(b) - toUTC(a)) / 864e5); // b - a
-function parseDate(v) {
-  if (v instanceof Date) return isNaN(v) ? null : isoOf(v);
-  const s = String(v ?? '').trim();
-  let m;
-  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/))) return valid(+m[1], +m[2], +m[3]);
-  if ((m = s.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/))) {
-    let a = +m[1], b = +m[2], y = +m[3]; if (y < 100) y += 2000;
-    return a > 12 ? valid(y, b, a) : b > 12 ? valid(y, a, b) : valid(y, a, b); // ambiguous: month first
-  }
-  return null;
-}
 function valid(y, m, d) {
   const dt = new Date(Date.UTC(y, m - 1, d));
   return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d ? `${y}-${pad(m)}-${pad(d)}` : null;
 }
+// order: 'dmy' | 'mdy' | undefined (undefined: dots mean day-first, slashes month-first)
+function parseDate(v, order) {
+  if (v instanceof Date) return isNaN(v) ? null : isoOf(v);
+  const s = String(v ?? '').trim();
+  let m;
+  if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/))) return valid(+m[1], +m[2], +m[3]);
+  if ((m = s.match(/^(\d{1,2})([\/.\-])(\d{1,2})\2(\d{2,4})$/))) {
+    const a = +m[1], b = +m[3]; let y = +m[4]; if (y < 100) y += 2000;
+    const dmy = a > 12 ? true : b > 12 ? false : order ? order === 'dmy' : m[2] === '.';
+    return dmy ? valid(y, b, a) : valid(y, a, b);
+  }
+  return null;
+}
+function dateOrder(vals) {
+  let dots = 0, others = 0;
+  for (const v of vals) { const m = String(v).trim().match(/^(\d{1,2})([\/.\-])(\d{1,2})\2\d{2,4}$/); if (m) { if (+m[1] > 12) return 'dmy'; if (+m[3] > 12) return 'mdy'; m[2] === '.' ? dots++ : others++; } }
+  return dots > others ? 'dmy' : undefined; // a column written with dots is day-first throughout
+}
 function num(v) {
   if (typeof v === 'number') return v;
   const s = String(v ?? '').replace(/[^\d.,\-]/g, '');
-  if (!s) return null;
+  if (!s || s === '-') return null;
   const n = parseFloat(s.includes(',') && s.includes('.') ? s.replace(/,/g, '') : s.replace(/,(?=\d{3}\b)/g, '').replace(',', '.'));
   return isNaN(n) ? null : n;
 }
-const fmtNum = n => n == null ? '' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
+const fmtNum = n => n == null || !isFinite(n) ? '' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
+const fmtVal = (c, v) => v == null ? '–' : fmtNum(v) + (c && c.type === 'percent' ? '%' : '');
 
 /* ---------- parsing ---------- */
 function parseTable(text, keepBlank) {
   text = text.replace(/^﻿/, '');
-  const first = text.split(/\r?\n/, 1)[0];
+  const first = text.split(/\r?\n/).find(l => l.trim()) || '';
   const delim = [['\t', first.split('\t').length], [';', first.split(';').length], [',', first.split(',').length]].sort((a, b) => b[1] - a[1])[0][0];
   const rows = []; let row = [], cur = '', q = false;
   for (let i = 0; i < text.length; i++) {
@@ -62,7 +72,6 @@ function parseTable(text, keepBlank) {
   return rows.filter(r => r.some(c => c.trim() !== ''));
 }
 
-
 /* ---------- matrix layouts (price lists, side-by-side blocks) -> records ---------- */
 function unpivot(raw) {
   const W = Math.max(0, ...raw.map(r => r.length)), g = (r, c) => (raw[r][c] ?? '').trim();
@@ -70,6 +79,7 @@ function unpivot(raw) {
   const emptyCol = c => raw.every((_, r) => g(r, c) === '');
   const bands = []; let start = null;
   for (let c = 0; c <= W; c++) { const e = c === W || emptyCol(c); if (!e && start === null) start = c; if (e && start !== null) { bands.push([start, c - 1]); start = null; } }
+  if (bands.length < 2) return null;
   const out = [['Block', 'Section', 'Item', 'Currency', 'Plan', 'Value', 'Unit']];
   for (const [c0, c1] of bands) {
     const cols = r => { const a = []; for (let c = c0; c <= c1; c++) if (g(r, c) !== '') a.push(c); return a; };
@@ -99,46 +109,168 @@ function unpivot(raw) {
   return out.length > 1 ? out : null;
 }
 
+/* ---------- column type inference ---------- */
 const DONE_RE = /^(won|lost|closed|done|paid|complete[d]?|resolved|inactive|left|terminated|cancel+ed|archived|rejected)$/i;
 function inferType(name, vals) {
-  const v = vals.filter(x => String(x).trim() !== '');
+  const v = vals.map(x => String(x).trim()).filter(x => x !== '');
   if (!v.length) return 'text';
   const frac = f => v.filter(f).length / v.length;
-  if (frac(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(x).trim())) > .8) return 'email';
-  if (frac(x => parseDate(x)) > .8) return 'date';
+  if (frac(x => /^(true|false|yes|no)$/i.test(x)) >= .9) return 'bool';
+  if (frac(x => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(x)) > .8) return 'email';
+  if (frac(x => /^https?:\/\//i.test(x)) > .8) return 'link';
+  if (frac(x => /^-?[\d.,]+\s*%$/.test(x)) > .9) return 'percent';
+  const order = dateOrder(v);
+  if (frac(x => parseDate(x, order)) > .8) return 'date';
   if (/status|stage|state$/i.test(name)) return 'status';
-  if (frac(x => num(x) != null && /^[\s$€£]*-?[\d.,]+\s*[$€£%]?$/.test(String(x))) > .9) {
+  if (frac(x => num(x) != null && /^[\s$€£]*-?[\d.,]+\s*[$€£%]?$/.test(x)) > .9)
     return /salary|price|amount|value|cost|revenue|total|pay|fee|budget|bonus|wage/i.test(name) || v.some(x => /[$€£]/.test(x)) ? 'money' : 'number';
-  }
-  const uniq = new Set(v.map(x => String(x).trim().toLowerCase()));
+  if (v.reduce((t, x) => t + x.length, 0) / v.length > 80 || v.some(x => x.length > 200)) return 'longtext';
+  const uniq = new Set(v.map(x => x.toLowerCase()));
   if (uniq.size <= 8 && uniq.size < v.length / 2) return 'status';
   return 'text';
 }
 
-function buildSheet(name, table) {
-  const headers = table[0].map((h, i) => (h || '').trim() || `Column ${i + 1}`);
-  const seen = {}; const names = headers.map(h => { seen[h] = (seen[h] || 0) + 1; return seen[h] > 1 ? `${h} ${seen[h]}` : h; });
-  const body = table.slice(1);
-  const columns = names.map((n, i) => ({ name: n, type: inferType(n, body.map(r => r[i] ?? '')) }));
+function pickHeader(table) {
+  const lim = Math.min(10, table.length), cnt = r => table[r].filter(c => c.trim() !== '').length;
+  const max = Math.max(...Array.from({ length: lim }, (_, r) => cnt(r)));
+  let h = 0; while (cnt(h) < .8 * max) h++;
+  return h;
+}
+
+function buildSheet(name, table, formulas) {
+  const h = pickHeader(table), above = table.slice(0, h), body = table.slice(h + 1);
+  const raw = table[h].map(x => (x || '').trim());
+  const W = raw.length;
+  const counts = {}; raw.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
+  const aboveCell = i => above.map(r => (r[i] || '').trim()).filter(Boolean);
+  const names = raw.map((x, i) => {
+    let n = x;
+    if (!n || counts[x] > 1 || n.includes('\n') || n.length > 40) { const alt = aboveCell(i).filter(a => a.length <= 40).sort((a, b) => a.length - b.length)[0]; if (alt) n = alt; }
+    return n.replace(/\s*\n\s*/g, ' ').slice(0, 60) || `Column ${i + 1}`;
+  });
+  const seen = {}; const uniq = names.map(n => { seen[n] = (seen[n] || 0) + 1; return seen[n] > 1 ? `${n} ${seen[n]}` : n; });
+  const columns = uniq.map((n, i) => {
+    const vals = body.map(r => r[i] ?? '');
+    const type = inferType(raw[i].includes('\n') ? n : n, vals);
+    const desc = aboveCell(i).filter(a => a.length > 40).sort((a, b) => b.length - a.length)[0] || (raw[i].includes('\n') ? raw[i].replace(/\s*\n\s*/g, ' · ') : '');
+    return { name: n, type, order: type === 'date' ? dateOrder(vals) : undefined, desc, formula: formulas?.[i] || '' };
+  });
   const now = new Date().toISOString();
   const rows = body.map(r => ({
     id: uid(), touched: now, notes: [], handled: {},
-    cells: Object.fromEntries(columns.map((c, i) => [c.name, c.type === 'date' ? (parseDate(r[i]) || (r[i] ?? '').trim()) : (r[i] ?? '').trim()]))
+    cells: Object.fromEntries(columns.map((c, i) => [c.name, c.type === 'date' ? (parseDate(r[i], c.order) || (r[i] ?? '').trim()) : (r[i] ?? '').trim()]))
   }));
-  const pick = t => columns.find(c => c.type === t)?.name || '';
-  const statusCol = pick('status');
+  const distinct = c => new Set(rows.map(r => r.cells[c.name]).filter(v => v !== '')).size;
+  const statusCol = columns.find(c => c.type === 'status' && distinct(c) >= 2)?.name || '';
   const doneStatuses = statusCol ? [...new Set(rows.map(r => r.cells[statusCol]).filter(v => DONE_RE.test(v)))].join(', ') : '';
   return {
     id: uid(), name, columns, rows, statusCol, doneStatuses,
-    titleCol: (columns.find(c => c.type === 'text') || columns[0]).name,
-    amountCol: pick('money') || pick('number'),
+    titleCol: (columns.find(c => c.type === 'text' && distinct(c) > 1) || columns.find(c => c.type === 'text') || columns[0]).name,
     lastCol: columns.find(c => c.type === 'date' && /last|contact|touch/i.test(c.name))?.name || '',
     staleDays: 0,
     watches: columns.filter(c => c.type === 'date' && /follow|due|review|renew|next|expir|deadline|remind|end/i.test(c.name)).map(c => ({ col: c.name, offset: 0 }))
   };
 }
 
-/* ---------- workflow logic ---------- */
+/* ---------- logic discovery: how are columns calculated from each other? ---------- */
+function discoverLogic(s) {
+  const cols = s.columns, V = cols.map(c => isNumT(c.type) ? s.rows.map(r => num(r.cells[c.name])) : null);
+  const numIdx = cols.map((c, i) => V[i] ? i : -1).filter(i => i >= 0).slice(0, 40);
+  const nonConst = i => new Set(V[i].filter(x => x != null)).size > 1;
+  const test = (Yi, fn, tolFn) => {
+    let n = 0, ok = 0; const bad = [];
+    s.rows.forEach((r, k) => {
+      const y = V[Yi][k], e = fn(k); if (y == null || e == null || !isFinite(e)) return;
+      n++; if (Math.abs(y - e) <= tolFn(y)) ok++; else bad.push(r.id);
+    });
+    return { n, ok, bad, good: n >= 3 && ok / n >= .97, exact: n >= 3 && ok === n };
+  };
+  const exact = y => Math.max(.005 * Math.abs(y), .01), round = y => Math.max(.006 * Math.abs(y), .51);
+  const rules = [];
+  for (const Yi of numIdx) {
+    if (!nonConst(Yi)) continue;
+    let best = null;
+    for (let i = 0; i < cols.length; i++) {
+      if (!V[i] || i === Yi) continue;
+      for (let j = i + 1; j < cols.length && V[j] && j !== Yi; j++) {
+        const run = []; for (let q = i; q <= j; q++) run.push(q);
+        const t = test(Yi, k => { let t = 0; for (const q of run) { if (V[q][k] == null) return null; t += V[q][k]; } return t; }, exact);
+        if (t.good && (!best || run.length > best.run.length)) best = { run, t };
+      }
+    }
+    const mk = (kind, text, t, extra) => rules.push({ col: cols[Yi].name, kind, text, bad: t.bad, checked: t.n, ...extra });
+    if (best) { mk('sum', `${cols[Yi].name} = sum of ${cols[best.run[0]].name} → ${cols[best.run.at(-1)].name} (${best.run.length} columns)`, best.t, { parts: best.run.map(q => cols[q].name) }); continue; }
+    let found = false;
+    for (const A of numIdx) {
+      if (A >= Yi || A === Yi) continue;
+      const t = test(Yi, k => V[A][k], exact);
+      if (t.exact) { mk('copy', `${cols[Yi].name} = ${cols[A].name}`, t); found = true; break; }
+    }
+    if (found) continue;
+    const mults = cols[Yi].type === 'percent' ? [100, 1] : [1, 100];
+    for (const A of numIdx) { if (found) break; if (A === Yi) continue;
+      for (const B of numIdx) {
+        if (B === A || B === Yi) continue;
+        for (const m of mults) {
+          const t = test(Yi, k => V[B][k] ? V[A][k] / V[B][k] * m : null, m === 100 ? round : y => Math.max(.006 * Math.abs(y), .011));
+          if (t.good) { mk('ratio', `${cols[Yi].name} = ${cols[A].name} ÷ ${cols[B].name}${m === 100 ? ' × 100' : ''}`, t); found = true; break; }
+        }
+        if (found) break;
+      }
+    }
+    if (found) continue;
+    for (const A of numIdx) { if (found) break; if (A === Yi || !nonConst(A)) continue;
+      for (const B of numIdx) {
+        if (B <= A || B === Yi || !nonConst(B)) continue;
+        for (const [sym, fn] of [['×', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] * V[B][k]], ['−', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] - V[B][k]], ['+', k => V[A][k] == null || V[B][k] == null ? null : V[A][k] + V[B][k]]]) {
+          const t = test(Yi, fn, exact);
+          if (t.good) { mk('calc', `${cols[Yi].name} = ${cols[A].name} ${sym} ${cols[B].name}`, t); found = true; break; }
+        }
+        if (found) break;
+      }
+    }
+  }
+  return rules;
+}
+const colLetter = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
+const letterIdx = L => L.split('').reduce((t, ch) => t * 26 + ch.charCodeAt(0) - 64, 0) - 1;
+const readableFormula = (s, f) => '=' + f.replace(/\$?([A-Z]{1,3})\$?\d+/g, (m, L) => `[${s.columns[letterIdx(L)]?.name ?? L}]`);
+
+/* ---------- profile: what is each column for? ---------- */
+const dist = (s, c) => new Set(s.rows.map(r => r.cells[c.name]).filter(v => v !== '' && v != null));
+function profile(s) {
+  const rules = discoverLogic(s);
+  const filled = c => s.rows.filter(r => r.cells[c.name] !== '' && r.cells[c.name] != null).length;
+  const stat = {}; s.columns.forEach(c => { stat[c.name] = { n: filled(c), d: dist(s, c).size }; });
+  const sumRule = rules.filter(r => r.kind === 'sum').sort((a, b) => b.parts.length - a.parts.length)[0];
+  let criteria = sumRule && sumRule.parts.length >= 3 ? sumRule.parts : [];
+  if (!criteria.length) {
+    let run = [], best = [];
+    for (const c of s.columns) {
+      const ok = isNumT(c.type) && s.rows.every(r => { const x = num(r.cells[c.name]); return x == null || (Number.isInteger(x) && x >= 0 && x <= 10); }) && stat[c.name].n > 0;
+      if (ok) { run.push(c.name); if (run.length > best.length) best = run.slice(); } else run = [];
+    }
+    if (best.length >= 3) criteria = best;
+  }
+  const isCrit = c => criteria.includes(c.name);
+  const constants = s.columns.filter(c => stat[c.name].n > 0 && stat[c.name].d === 1 && c.type !== 'longtext');
+  const isConst = c => constants.includes(c);
+  const measures = s.columns.filter(c => isNumT(c.type) && !isCrit(c) && !isConst(c) && stat[c.name].n >= 3);
+  const nameHit = c => /score|total|amount|value|revenue|salary|price|rating|cost|pay/i.test(c.name);
+  const primary = (measures.find(c => c.type === 'percent') || measures.find(nameHit) || (rules.length ? measures.find(c => c.name === rules.at(-1).col) : null) || measures[0] || null)?.name || '';
+  const dims = s.columns.filter(c => ['text', 'status'].includes(c.type) && !isConst(c) && stat[c.name].d >= 2 && stat[c.name].d <= 30 && (c.type === 'status' || stat[c.name].n / stat[c.name].d >= 1.5)).map(c => c.name);
+  const primaryDim = dims.find(n => /name|agent|employee|owner|rep|team|dept|department|region|category|status|stage|type|plan/i.test(n)) || dims[0] || '';
+  const time = s.columns.find(c => c.type === 'date' && stat[c.name].d >= 3)?.name || '';
+  return {
+    rules, criteria, constants, measures, primary, dims, primaryDim, time, stat,
+    bools: s.columns.filter(c => c.type === 'bool' && !isConst(c)),
+    longs: s.columns.filter(c => c.type === 'longtext'),
+    links: s.columns.filter(c => c.type === 'link'),
+    allNum: s.columns.filter(c => isNumT(c.type) && !isConst(c) && stat[c.name].n >= 3)
+  };
+}
+
+/* ---------- reminders ---------- */
 const isDone = (s, r) => !!s.statusCol && s.doneStatuses.split(',').map(x => x.trim().toLowerCase()).filter(Boolean).includes(String(r.cells[s.statusCol] ?? '').trim().toLowerCase());
 function analyse(s) {
   const t = todayISO(); const out = { overdue: [], today: [], soon: [], stale: [] };
@@ -159,20 +291,138 @@ function analyse(s) {
   out.overdue.sort((a, b) => a.diff - b.diff); out.soon.sort((a, b) => a.diff - b.diff); out.stale.sort((a, b) => b.age - a.age);
   return out;
 }
-const title = (s, r) => r.cells[s.titleCol] || '(untitled)';
+let dupCache = null;
+function title(s, r) {
+  const base = r.cells[s.titleCol] || '(untitled)';
+  if (!dupCache || dupCache.k !== s.id + s.titleCol) { const cnt = {}; s.rows.forEach(x => { const b = x.cells[s.titleCol]; cnt[b] = (cnt[b] || 0) + 1; }); dupCache = { k: s.id + s.titleCol, cnt }; }
+  if (dupCache.cnt[base] > 1) { const d = s.columns.find(c => c.type === 'date'); const dv = d && r.cells[d.name]; if (dv) return `${base} · ${dv}`; }
+  return base;
+}
 
 /* ---------- rendering ---------- */
+const TABS = [['dash', 'Dashboard'], ['rem', 'Reminders'], ['table', 'Table'], ['setup', 'Setup']];
 function render() {
-  const sel = $('#wsSelect');
-  sel.innerHTML = state.sheets.map(s => `<option value="${s.id}" ${s.id === state.current ? 'selected' : ''}>${esc(s.name)}</option>`).join('') || '<option>No sheets yet</option>';
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
+  dupCache = null;
+  $('#wsSelect').innerHTML = state.sheets.map(s => `<option value="${s.id}" ${s.id === state.current ? 'selected' : ''}>${esc(s.name)}</option>`).join('') || '<option>No sheets yet</option>';
+  $('#tabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${ui.tab === k ? 'on' : ''}">${l}</button>`).join('');
   const s = sheet(); const m = $('#main');
-  if (!s) { m.innerHTML = `<div class="card"><h2>Turn any sheet into a tracked workflow</h2><p class="muted">Import a CSV or Excel file, paste cells, or try a sample (customers, salaries). SheetPilot detects dates, money and statuses, then gives you reminders and insights.</p><button class="primary" data-act="import">Import a sheet</button></div>`; renderDrawer(); return; }
-  m.innerHTML = (s.note ? `<p class="card muted">${esc(s.note)}</p>` : '') + { today: viewToday, table: viewTable, insights: viewInsights, setup: viewSetup }[ui.tab](s);
+  if (!s) { m.innerHTML = `<div class="card"><h2>Turn any sheet into a live dashboard</h2><p class="muted">Import a CSV or Excel file, paste cells, or try a sample. SheetPilot works out what each column is, how the numbers are calculated, and builds an interactive dashboard from that.</p><button class="primary" data-act="import">Import a sheet</button></div>`; renderDrawer(); return; }
+  m.innerHTML = (s.note ? `<p class="card muted">${esc(s.note)}</p>` : '') + { dash: viewDash, rem: viewRem, table: viewTable, setup: viewSetup }[ui.tab](s);
   renderDrawer();
 }
 
-function rem(s, it, kind) {
+/* --- dashboard helpers --- */
+const AGGS = { avg: 'Average', sum: 'Total', count: 'Count', max: 'Highest', min: 'Lowest' };
+function aggregate(rows, col, how) {
+  if (how === 'count') return rows.length;
+  const v = rows.map(r => num(r.cells[col])).filter(x => x != null);
+  if (!v.length) return null;
+  const sum = v.reduce((a, b) => a + b, 0);
+  return how === 'sum' ? sum : how === 'max' ? Math.max(...v) : how === 'min' ? Math.min(...v) : sum / v.length;
+}
+const filteredRows = s => s.rows.filter(r => Object.entries(ui.f).every(([k, v]) => String(r.cells[k] ?? '') === v));
+const groupBy = (rows, col) => { const g = new Map(); rows.forEach(r => { const k = r.cells[col]; if (k === '' || k == null) return; (g.get(k) || g.set(k, []).get(k)).push(r); }); return g; };
+const opts = (list, sel) => list.map(([v, l]) => `<option value="${esc(v)}" ${v === sel ? 'selected' : ''}>${esc(l ?? v)}</option>`).join('');
+
+function lineChart(points, fmt) {
+  const W = 640, H = 170, P = 34, vs = points.map(p => p.v), lo = Math.min(...vs), hi = Math.max(...vs), span = hi - lo || 1;
+  const X = i => P + (points.length === 1 ? (W - 2 * P) / 2 : i / (points.length - 1) * (W - 2 * P)), Y = v => H - 26 - ((v - lo) / span) * (H - 56);
+  return `<svg viewBox="0 0 ${W} ${H}" class="line" role="img"><polyline fill="none" stroke="var(--accent)" stroke-width="2" points="${points.map((p, i) => `${X(i)},${Y(p.v)}`).join(' ')}"/>
+    ${points.map((p, i) => `<circle cx="${X(i)}" cy="${Y(p.v)}" r="4" fill="var(--accent)"><title>${esc(p.l)}: ${fmt(p.v)} (${p.n} rows)</title></circle>`).join('')}
+    <text x="${P}" y="${H - 6}" class="ax">${esc(points[0].l)}</text><text x="${W - P}" y="${H - 6}" text-anchor="end" class="ax">${esc(points.at(-1).l)}</text>
+    <text x="4" y="${Y(hi) + 4}" class="ax">${fmt(hi)}</text>${hi !== lo ? `<text x="4" y="${Y(lo) + 4}" class="ax">${fmt(lo)}</text>` : ''}</svg>`;
+}
+
+function viewDash(s) {
+  const P = profile(s), rows = filteredRows(s), total = s.rows.length;
+  const mc = s.columns.find(c => c.name === (ui.measure || P.primary)) && (ui.measure || P.primary) ? s.columns.find(c => c.name === (ui.measure || P.primary)) : null;
+  const dim = P.dims.includes(ui.dim) ? ui.dim : P.primaryDim;
+  const agg = mc ? (ui.agg || (mc.type === 'money' ? 'sum' : 'avg')) : 'count';
+  const aggName = mc ? `${AGGS[agg]} ${mc.name}` : 'Rows';
+  const fv = v => mc ? fmtVal(mc, v) : fmtNum(v);
+  const nActive = Object.keys(ui.f).length;
+  let h = '';
+
+  // header summary
+  const timeC = s.columns.find(c => c.name === P.time);
+  const dates = timeC ? rows.map(r => r.cells[timeC.name]).filter(Boolean).sort() : [];
+  h += `<div class="summary"><b>${rows.length}${nActive ? ` of ${total}` : ''} rows</b>${dates.length ? ` · ${esc(timeC.name)}: ${esc(dates[0])} → ${esc(dates.at(-1))}` : ''}${P.constants.length ? `<div class="muted">Same on every row: ${P.constants.map(c => `${esc(c.name)} = ${esc(s.rows.find(r => r.cells[c.name] !== '')?.cells[c.name])}`).join(' · ')}</div>` : ''}</div>`;
+
+  // filters
+  const fcols = [...P.dims, ...P.bools.map(c => c.name)].slice(0, 6);
+  h += `<div class="tools filters">${fcols.map(n => `<select data-fsel="${esc(n)}"><option value="">All ${esc(n)}</option>${opts([...dist(s, s.columns.find(c => c.name === n))].sort().map(v => [v]), ui.f[n])}</select>`).join('')}${nActive ? '<button data-act="clearf">Clear filters</button>' : ''}</div>`;
+
+  // KPI cards
+  const cards = [`<div class="card"><div class="n">${rows.length}</div>Rows</div>`];
+  if (mc) {
+    const money = mc.type === 'money';
+    const kp = money ? [['sum', 'Total'], ['avg', 'Average']] : [['avg', 'Average'], ['min', 'Lowest'], ['max', 'Highest']];
+    kp.forEach(([a, l]) => cards.push(`<div class="card"><div class="n">${fmtVal(mc, aggregate(rows, mc.name, a))}</div>${l} ${esc(mc.name)}</div>`));
+  }
+  P.measures.filter(c => c !== mc).slice(0, 2).forEach(c => { const a = c.type === 'money' ? 'sum' : 'avg'; cards.push(`<div class="card"><div class="n">${fmtVal(c, aggregate(rows, c.name, a))}</div>${AGGS[a]} ${esc(c.name)}</div>`); });
+  P.bools.slice(0, 3).forEach(c => { const t = rows.filter(r => /^(true|yes)$/i.test(r.cells[c.name])).length; cards.push(`<div class="card ${t ? 'green' : ''}"><div class="n">${t}<span class="muted"> / ${rows.length}</span></div>${esc(c.name)}</div>`); });
+  P.longs.slice(0, 2).forEach(c => cards.push(`<div class="card"><div class="n">${rows.filter(r => r.cells[c.name]).length}</div>Rows with ${esc(c.name)}</div>`));
+  if (s.watches.length) { const a = analyse(s); cards.push(`<div class="card ${a.overdue.length ? 'red' : ''}" data-tab-go="rem" style="cursor:pointer"><div class="n">${a.overdue.length}</div>Overdue reminders</div>`); }
+  h += `<div class="cards">${cards.join('')}</div>`;
+
+  // grouped bars
+  if (dim) {
+    const g = [...groupBy(rows, dim)].map(([k, rs]) => ({ k, rs, v: aggregate(rs, mc ? mc.name : '', agg) })).filter(x => x.v != null).sort((a, b) => b.v - a.v).slice(0, 25);
+    const max = Math.max(...g.map(x => Math.abs(x.v)), 1e-9);
+    h += `<h2>${esc(aggName)} by ${esc(dim)}</h2><div class="tools"><select data-ui="agg">${opts(Object.entries(AGGS).filter(([k]) => mc || k === 'count'), agg)}</select><select data-ui="measure">${opts(P.allNum.map(c => [c.name]), mc?.name)}</select><span class="muted">by</span><select data-ui="dim">${opts(P.dims.map(d => [d]), dim)}</select><span class="muted">click a bar to filter</span></div>
+      <div class="list bars">${g.map(x => `<div class="brow ${ui.f[dim] === x.k ? 'on' : ''}" data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}"><div class="bl">${esc(x.k)}</div><div class="bt"><div class="bar" style="width:${Math.abs(x.v) / max * 100}%"></div></div><div class="bv">${fv(x.v)} <span class="muted">(${x.rs.length})</span></div></div>`).join('') || '<div class="empty">No data.</div>'}</div>`;
+  }
+
+  // trend
+  if (timeC && mc) {
+    const byDay = [...groupBy(rows, timeC.name)].map(([k, rs]) => ({ l: k, v: aggregate(rs, mc.name, agg), n: rs.length })).filter(x => x.v != null).sort((a, b) => a.l < b.l ? -1 : 1);
+    if (byDay.length >= 2) h += `<h2>${esc(aggName)} over ${esc(timeC.name)}</h2><div class="card">${lineChart(byDay, fv)}</div>`;
+  }
+
+  // heatmap of criteria
+  if (P.criteria.length >= 2) {
+    const cc = P.criteria.map(n => s.columns.find(c => c.name === n)); const all = cc.flatMap(c => rows.map(r => num(r.cells[c.name]))).filter(x => x != null); const top = Math.max(...all, 1);
+    const cell = rs => (c) => { const v = aggregate(rs, c.name, 'avg'); return v == null ? '<td>–</td>' : `<td style="background:hsla(${Math.max(0, Math.min(1, v / top)) ** 2 * 120},70%,45%,.38)">${fmtNum(v)}</td>`; };
+    const groups = dim ? [...groupBy(rows, dim)].sort((a, b) => String(a[0]).localeCompare(String(b[0]))).slice(0, 40) : [];
+    h += `<h2>${esc(P.rules.find(r => r.kind === 'sum')?.col ? 'Breakdown of ' + P.rules.find(r => r.kind === 'sum').col : 'Criteria')}${dim ? ` by ${esc(dim)}` : ''}</h2><div class="tablewrap"><table class="heat"><thead><tr><th>${esc(dim || '')}</th>${cc.map(c => `<th title="${esc(c.desc)}">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+      <tr class="all"><td><b>All (${rows.length})</b></td>${cc.map(cell(rows)).join('')}</tr>
+      ${groups.map(([k, rs]) => `<tr class="${ui.f[dim] === k ? 'on' : ''}"><td><a data-act="fdim" data-c="${esc(dim)}" data-v="${esc(k)}">${esc(k)}</a> <span class="muted">(${rs.length})</span></td>${cc.map(cell(rs)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">Colour: green = high, red = low. Hover a column title for its description.</p>`;
+  }
+
+  // distribution
+  if (mc) {
+    const vals = rows.map(r => num(r.cells[mc.name])).filter(x => x != null);
+    if (vals.length >= 3) {
+      const lo = Math.min(...vals), hi = Math.max(...vals), distinct = [...new Set(vals)].sort((a, b) => a - b);
+      let bins;
+      if (distinct.length <= 8) bins = distinct.map(v => ({ l: fmtVal(mc, v), n: vals.filter(x => x === v).length }));
+      else { const w = (hi - lo) / 8; bins = Array.from({ length: 8 }, (_, i) => ({ a: lo + i * w, b: lo + (i + 1) * w, l: fmtNum(lo + i * w) })); vals.forEach(v => { bins[Math.min(7, Math.floor((v - lo) / w))].n = (bins[Math.min(7, Math.floor((v - lo) / w))].n || 0) + 1; }); bins.forEach(b => { b.n ||= 0; }); }
+      const mx = Math.max(...bins.map(b => b.n), 1);
+      h += `<h2>Distribution of ${esc(mc.name)}</h2><div class="card"><div class="hist">${bins.map(b => `<div class="hcol"><div class="hn">${b.n}</div><div class="hbar" style="height:${b.n / mx * 100}px"></div><div class="hl">${esc(b.l)}</div></div>`).join('')}</div></div>`;
+    }
+  }
+
+  // attention list
+  if (mc) {
+    const money = mc.type === 'money';
+    const list = rows.map(r => ({ r, v: num(r.cells[mc.name]) })).filter(x => x.v != null).sort((a, b) => money ? b.v - a.v : a.v - b.v).slice(0, 5);
+    const long = P.longs[0];
+    h += `<h2>${money ? 'Highest' : 'Lowest'} ${esc(mc.name)}</h2><div class="list">${list.map(x => `<div class="item"><div class="t"><a data-act="open" data-r="${x.r.id}">${esc(title(s, x.r))}</a>${long ? `<div class="muted">${esc((x.r.cells[long.name] || '').slice(0, 160))}${(x.r.cells[long.name] || '').length > 160 ? '…' : ''}</div>` : ''}</div><span class="badge">${fmtVal(mc, x.v)}</span></div>`).join('') || '<div class="empty">Nothing here.</div>'}</div>`;
+  }
+
+  // logic
+  h += `<h2>How this sheet works</h2><details class="card" open><summary>What SheetPilot understood</summary>
+    <ul class="logic">
+    <li>Each row is labelled by <b>${esc(s.titleCol)}</b>${P.primary ? `; main number: <b>${esc(P.primary)}</b>` : ''}${P.criteria.length ? `; ${P.criteria.length} scored criteria` : ''}${P.time ? `; timeline: <b>${esc(P.time)}</b>` : ''}.</li>
+    ${P.dims.length ? `<li>Can be grouped by: ${P.dims.map(esc).join(', ')}.</li>` : ''}
+    ${s.columns.filter(c => c.formula).map(c => `<li><b>${esc(c.name)}</b> is a formula in your file: <code>${esc(readableFormula(s, c.formula))}</code></li>`).join('')}
+    ${P.rules.map(r => `<li>${esc(r.text)} <span class="badge ${r.bad.length ? 'amber' : 'green'}">${r.bad.length ? `${r.bad.length} of ${r.checked} rows differ` : `holds in all ${r.checked} rows`}</span>${r.bad.length ? ' ' + r.bad.slice(0, 5).map(id => `<a data-act="open" data-r="${id}">${esc(title(s, s.rows.find(x => x.id === id)))}</a>`).join(', ') : ''}</li>`).join('')}
+    </ul>${P.rules.length && !s.columns.some(c => c.formula) ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}</details>`;
+  return h;
+}
+
+/* --- reminders --- */
+function remItem(s, it, kind) {
   const label = kind === 'overdue' ? `${-it.diff}d overdue` : kind === 'today' ? 'today' : `in ${it.diff}d`;
   const cls = kind === 'overdue' ? 'red' : kind === 'today' ? 'amber' : 'green';
   return `<div class="item"><div class="t"><a data-act="open" data-r="${it.r.id}">${esc(title(s, it.r))}</a><div class="muted">${esc(it.w.col)}: ${esc(it.due)}${s.statusCol ? ' · ' + esc(it.r.cells[s.statusCol]) : ''}</div></div>
@@ -180,23 +430,18 @@ function rem(s, it, kind) {
     <button data-act="snooze" data-r="${it.r.id}" data-w="${esc(it.w.col)}" title="Move the date 7 days later">+7d</button>
     <button data-act="handled" data-r="${it.r.id}" data-w="${esc(it.w.col)}">Done</button></div>`;
 }
-function section(h, items, fn) { return `<h2>${h} (${items.length})</h2><div class="list">${items.length ? items.map(fn).join('') : '<div class="empty">Nothing here.</div>'}</div>`; }
-
-function viewToday(s) {
+const section = (h, items, fn) => `<h2>${h} (${items.length})</h2><div class="list">${items.length ? items.map(fn).join('') : '<div class="empty">Nothing here.</div>'}</div>`;
+function viewRem(s) {
   const a = analyse(s);
-  const active = s.rows.filter(r => !isDone(s, r));
-  let h = `<div class="cards">
-    <div class="card red"><div class="n">${a.overdue.length}</div>Overdue</div>
-    <div class="card amber"><div class="n">${a.today.length}</div>Due today</div>
-    <div class="card green"><div class="n">${a.soon.length}</div>Next 14 days</div>
-    <div class="card"><div class="n">${s.staleDays > 0 ? a.stale.length : '–'}</div>${s.staleDays > 0 ? `Untouched ${s.staleDays}+ days` : 'Stale rule off'}</div>
-    <div class="card"><div class="n">${active.length}</div>Active rows</div></div>`;
-  if (!s.watches.length) h += `<div class="card">No date columns are being watched yet. Open <a href="#" data-tab-go="setup">Setup</a> and tick the dates that should trigger reminders (for example <i>Follow-up date</i> or <i>Review date</i>).</div>`;
-  h += section('Overdue', a.overdue, it => rem(s, it, 'overdue')) + section('Due today', a.today, it => rem(s, it, 'today')) + section('Coming up', a.soon, it => rem(s, it, 'soon'));
-  if (s.staleDays > 0) h += section('Gone quiet', a.stale, it => `<div class="item"><div class="t"><a data-act="open" data-r="${it.r.id}">${esc(title(s, it.r))}</a></div><span class="badge amber">${it.age}d no activity</span></div>`);
+  let h = '';
+  if (!s.watches.length) h += `<div class="card">No date columns are being watched. Open <a href="#" data-tab-go="setup">Setup</a> and tick the dates that should trigger reminders.</div>`;
+  h += `<div class="cards"><div class="card red"><div class="n">${a.overdue.length}</div>Overdue</div><div class="card amber"><div class="n">${a.today.length}</div>Due today</div><div class="card green"><div class="n">${a.soon.length}</div>Next 14 days</div>${s.staleDays > 0 ? `<div class="card"><div class="n">${a.stale.length}</div>No activity ${s.staleDays}+ days</div>` : ''}</div>`;
+  h += section('Overdue', a.overdue, it => remItem(s, it, 'overdue')) + section('Due today', a.today, it => remItem(s, it, 'today')) + section('Coming up', a.soon, it => remItem(s, it, 'soon'));
+  if (s.staleDays > 0) h += section('No recent activity', a.stale, it => `<div class="item"><div class="t"><a data-act="open" data-r="${it.r.id}">${esc(title(s, it.r))}</a></div><span class="badge amber">${it.age}d</span></div>`);
   return h;
 }
 
+/* --- table --- */
 function visibleRows(s) {
   let rows = s.rows.slice();
   const q = ui.q.toLowerCase();
@@ -206,12 +451,18 @@ function visibleRows(s) {
     const c = s.columns.find(x => x.name === ui.sort.col); const k = ui.sort.dir;
     rows.sort((a, b) => {
       let x = a.cells[c.name], y = b.cells[c.name];
-      if (c.type === 'number' || c.type === 'money') { x = num(x) ?? -Infinity; y = num(y) ?? -Infinity; }
+      if (isNumT(c.type)) { x = num(x) ?? -Infinity; y = num(y) ?? -Infinity; }
       else { x = String(x ?? '').toLowerCase(); y = String(y ?? '').toLowerCase(); }
       return (x > y ? 1 : x < y ? -1 : 0) * k;
     });
   }
   return rows;
+}
+function cellHtml(c, v) {
+  if (c.type === 'bool') return /^(true|yes)$/i.test(v) ? '✓' : v === '' ? '' : '–';
+  if (c.type === 'link' && v) return `<a href="${esc(v)}" target="_blank" rel="noopener">${esc(v.replace(/^https?:\/\/(www\.)?/, '').split('/').filter(Boolean).pop().slice(0, 24))}</a>`;
+  if (c.type === 'longtext') return `<span title="${esc(v)}">${esc(v.slice(0, 50))}${v.length > 50 ? '…' : ''}</span>`;
+  return esc(isNumT(c.type) && c.type !== 'percent' ? fmtNum(num(v)) || v : v);
 }
 function viewTable(s) {
   const statuses = s.statusCol ? [...new Set(s.rows.map(r => r.cells[s.statusCol]).filter(Boolean))] : [];
@@ -220,55 +471,29 @@ function viewTable(s) {
   return `<div class="tools"><input id="q" placeholder="Search…" value="${esc(ui.q)}">
     ${statuses.length ? `<select id="sf"><option value="">All ${esc(s.statusCol)}</option>${statuses.map(v => `<option ${v === ui.sf ? 'selected' : ''}>${esc(v)}</option>`).join('')}</select>` : ''}
     <div class="spacer"></div><span class="muted">${rows.length} of ${s.rows.length} rows · click a cell to edit</span><button data-act="addrow">+ Row</button></div>
-  <div class="tablewrap"><table><thead><tr><th></th>${s.columns.map(c => `<th data-sort="${esc(c.name)}">${esc(c.name)}${ui.sort?.col === c.name ? (ui.sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
+  <div class="tablewrap"><table><thead><tr><th></th>${s.columns.map(c => `<th data-sort="${esc(c.name)}" title="${esc(c.desc)}">${esc(c.name)}${ui.sort?.col === c.name ? (ui.sort.dir > 0 ? ' ▲' : ' ▼') : ''}</th>`).join('')}</tr></thead>
   <tbody>${rows.map(r => `<tr class="${isDone(s, r) ? 'muted' : ''}"><td><a data-act="open" data-r="${r.id}" style="cursor:pointer">↗</a></td>${s.columns.map(c => {
-      const v = r.cells[c.name] ?? ''; const isNum = c.type === 'number' || c.type === 'money';
+      const v = r.cells[c.name] ?? '';
       const over = c.type === 'date' && watched.has(c.name) && !isDone(s, r) && parseDate(v) && parseDate(v) < t && r.handled?.[c.name] !== parseDate(v);
-      return `<td data-r="${r.id}" data-c="${esc(c.name)}" class="${isNum ? 'num' : ''} ${c.type === 'date' ? 'date' : ''} ${over ? 'over' : ''}">${esc(isNum ? fmtNum(num(v)) || v : v)}</td>`;
+      return `<td data-r="${r.id}" data-c="${esc(c.name)}" class="${isNumT(c.type) ? 'num' : ''} ${c.type === 'date' ? 'date' : ''} ${over ? 'over' : ''}">${cellHtml(c, v)}</td>`;
     }).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
 
-function viewInsights(s) {
-  const a = analyse(s); const active = s.rows.filter(r => !isDone(s, r));
-  const amt = r => (s.amountCol ? num(r.cells[s.amountCol]) : null) ?? 0;
-  let h = `<div class="cards"><div class="card"><div class="n">${s.rows.length}</div>Rows</div><div class="card"><div class="n">${active.length}</div>Active</div>
-    ${s.amountCol ? `<div class="card"><div class="n">${fmtNum(active.reduce((t, r) => t + amt(r), 0))}</div>${esc(s.amountCol)} (active)</div>` : ''}
-    <div class="card red"><div class="n">${a.overdue.length}</div>Overdue</div></div>`;
-  if (s.statusCol) {
-    const g = {}; for (const r of s.rows) { const k = r.cells[s.statusCol] || '(empty)'; (g[k] ||= { n: 0, sum: 0 }); g[k].n++; g[k].sum += amt(r); }
-    const key = s.amountCol ? 'sum' : 'n'; const max = Math.max(...Object.values(g).map(x => x[key]), 1);
-    h += `<h2>By ${esc(s.statusCol)}</h2><div class="list">${Object.entries(g).sort((x, y) => y[1][key] - x[1][key]).map(([k, v]) =>
-      `<div class="item"><div style="width:140px">${esc(k)}</div><div class="t"><div class="bar" style="width:${v[key] / max * 100}%"></div></div><div>${v.n} rows${s.amountCol ? ' · ' + fmtNum(v.sum) : ''}</div></div>`).join('')}</div>`;
-  }
-  const nums = s.columns.filter(c => c.type === 'number' || c.type === 'money');
-  if (nums.length) {
-    h += `<h2>Numeric columns</h2><div class="tablewrap"><table class="coltab"><thead><tr><th>Column</th><th>Sum</th><th>Average</th><th>Min</th><th>Max</th></tr></thead><tbody>${nums.map(c => {
-      const v = s.rows.map(r => num(r.cells[c.name])).filter(x => x != null);
-      const sum = v.reduce((x, y) => x + y, 0);
-      return `<tr><td>${esc(c.name)}</td><td>${fmtNum(sum)}</td><td>${fmtNum(v.length ? sum / v.length : null)}</td><td>${fmtNum(Math.min(...v))}</td><td>${fmtNum(Math.max(...v))}</td></tr>`;
-    }).join('')}</tbody></table></div>`;
-  }
-  if (s.amountCol) {
-    const top = active.slice().sort((x, y) => amt(y) - amt(x)).slice(0, 5);
-    h += `<h2>Top 5 active by ${esc(s.amountCol)}</h2><div class="list">${top.map(r => `<div class="item"><div class="t"><a data-act="open" data-r="${r.id}">${esc(title(s, r))}</a></div><div>${fmtNum(amt(r))}</div></div>`).join('')}</div>`;
-  }
-  return h;
-}
-
+/* --- setup --- */
 function viewSetup(s) {
-  const opts = (sel, filter = () => true, none = '— none —') => `<option value="">${none}</option>` + s.columns.filter(filter).map(c => `<option ${c.name === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  const o = (sel, filter = () => true, none = '— none —') => `<option value="">${none}</option>` + s.columns.filter(filter).map(c => `<option ${c.name === sel ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
   const dates = s.columns.filter(c => c.type === 'date');
   return `<div class="setup">
+    <p class="muted">The Dashboard builds itself from the column types below. Reminders are optional: use them for sheets with follow-up or review dates.</p>
     <label>Sheet name<input data-set="name" value="${esc(s.name)}"></label>
-    <label>Title column <span>Shown as the name of each row.</span><select data-set="titleCol">${opts(s.titleCol, () => true, '—')}</select></label>
-    <label>Status column <span>Stage of each row (Lead, Active, On review…).</span><select data-set="statusCol">${opts(s.statusCol)}</select></label>
-    <label>Finished statuses <span>Comma-separated. Rows with these statuses are left out of reminders and totals.</span><input data-set="doneStatuses" value="${esc(s.doneStatuses)}"></label>
-    <label>Amount column <span>Money value to total (deal value, salary, cost…).</span><select data-set="amountCol">${opts(s.amountCol, c => c.type === 'money' || c.type === 'number')}</select></label>
-    <label>Last contacted column <span>Optional. Used by the "gone quiet" rule.</span><select data-set="lastCol">${opts(s.lastCol, c => c.type === 'date')}</select></label>
-    <label>Flag rows with no activity for (days) <span>0 turns it off. Editing a row or adding a note counts as activity.</span><input type="number" min="0" data-set="staleDays" value="${s.staleDays}"></label>
-    <div><b>Dates that trigger reminders</b><div class="muted">Offset shifts the reminder: <code>3</code> = three days after the date, <code>-30</code> = thirty days before (e.g. contract end).</div>
-      ${dates.length ? dates.map(c => { const w = s.watches.find(x => x.col === c.name); return `<div class="row" style="margin-top:6px"><label class="row" style="font-weight:400"><input type="checkbox" data-watch="${esc(c.name)}" ${w ? 'checked' : ''}> ${esc(c.name)}</label><input type="number" data-offset="${esc(c.name)}" value="${w ? w.offset : 0}" style="width:80px" ${w ? '' : 'disabled'}> <span class="muted">days</span></div>`; }).join('') : '<div class="muted">No date columns detected. Change a column type below to Date.</div>'}</div>
-    <div><b>Column types</b><div class="tablewrap" style="margin-top:6px"><table class="coltab"><tbody>${s.columns.map(c => `<tr><td>${esc(c.name)}</td><td><select data-type="${esc(c.name)}">${['text', 'number', 'money', 'date', 'status', 'email'].map(t => `<option ${t === c.type ? 'selected' : ''}>${t}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div>
+    <label>Title column <span>Names each row in lists.</span><select data-set="titleCol">${o(s.titleCol, () => true, '—')}</select></label>
+    <label>Status column <span>Optional. Rows with a finished status are skipped by reminders.</span><select data-set="statusCol">${o(s.statusCol)}</select></label>
+    <label>Finished statuses <span>Comma-separated.</span><input data-set="doneStatuses" value="${esc(s.doneStatuses)}"></label>
+    <label>Last contacted column <span>Optional. Used by the "no recent activity" rule.</span><select data-set="lastCol">${o(s.lastCol, c => c.type === 'date')}</select></label>
+    <label>Flag rows with no activity for (days) <span>0 turns it off.</span><input type="number" min="0" data-set="staleDays" value="${s.staleDays}"></label>
+    <div><b>Dates that trigger reminders</b><div class="muted">Offset shifts the reminder: <code>3</code> = three days after the date, <code>-30</code> = thirty days before.</div>
+      ${dates.length ? dates.map(c => { const w = s.watches.find(x => x.col === c.name); return `<div class="row" style="margin-top:6px"><label class="row" style="font-weight:400"><input type="checkbox" data-watch="${esc(c.name)}" ${w ? 'checked' : ''}> ${esc(c.name)}</label><input type="number" data-offset="${esc(c.name)}" value="${w ? w.offset : 0}" style="width:80px" ${w ? '' : 'disabled'}> <span class="muted">days</span></div>`; }).join('') : '<div class="muted">No date columns detected.</div>'}</div>
+    <div><b>Column types</b><div class="tablewrap" style="margin-top:6px"><table class="coltab"><tbody>${s.columns.map(c => `<tr><td>${esc(c.name)}</td><td><select data-type="${esc(c.name)}">${['text', 'longtext', 'number', 'money', 'percent', 'date', 'status', 'bool', 'email', 'link'].map(t => `<option ${t === c.type ? 'selected' : ''}>${t}</option>`).join('')}</select></td></tr>`).join('')}</tbody></table></div></div>
   </div>`;
 }
 
@@ -277,7 +502,7 @@ function renderDrawer() {
   if (!r) { d.hidden = true; return; }
   d.hidden = false;
   d.innerHTML = `<div class="row"><h3 style="flex:1">${esc(title(s, r))}</h3><button data-act="close">Close</button></div>
-    <div class="kv">${s.columns.map(c => `<div class="muted">${esc(c.name)}</div><div>${esc(r.cells[c.name] ?? '')}</div>`).join('')}</div>
+    <div class="kv">${s.columns.map(c => { const v = r.cells[c.name] ?? ''; return `<div class="muted">${esc(c.name)}</div><div style="white-space:pre-wrap;word-break:break-word">${c.type === 'link' ? cellHtml(c, v) : esc(v)}</div>`; }).join('')}</div>
     <h3>Activity</h3>
     <div class="row"><input id="noteIn" placeholder="Add a note (counts as activity)" style="flex:1"><button class="primary" data-act="addnote">Add</button></div>
     ${r.notes.slice().reverse().map(n => `<div class="note"><div class="muted">${esc(new Date(n.t).toLocaleString())}</div>${esc(n.text)}</div>`).join('') || '<p class="muted">No notes yet.</p>'}
@@ -288,7 +513,7 @@ function renderDrawer() {
 const findRow = id => sheet()?.rows.find(r => r.id === id);
 function setCell(r, col, val) {
   const c = sheet().columns.find(x => x.name === col);
-  r.cells[col] = c.type === 'date' ? (parseDate(val) || val.trim()) : val.trim();
+  r.cells[col] = c.type === 'date' ? (parseDate(val, c.order) || val.trim()) : val.trim();
   r.touched = new Date().toISOString(); save();
 }
 function startEdit(td) {
@@ -307,15 +532,24 @@ document.addEventListener('click', e => {
   const t = e.target;
   const tabBtn = t.closest('#tabs button'); if (tabBtn) { ui.tab = tabBtn.dataset.tab; render(); return; }
   const go = t.closest('[data-tab-go]'); if (go) { e.preventDefault(); ui.tab = go.dataset.tabGo; render(); return; }
+  if (t.closest('a[href]') && t.closest('td')) return;
   const th = t.closest('th[data-sort]');
   if (th) { const c = th.dataset.sort; ui.sort = ui.sort?.col === c ? (ui.sort.dir > 0 ? { col: c, dir: -1 } : null) : { col: c, dir: 1 }; render(); return; }
-  const td = t.closest('td[data-c]'); if (td && !t.closest('input')) { startEdit(td); return; }
+  const td = t.closest('td[data-c]');
+  if (td && !t.closest('input')) {
+    const s = sheet(), c = s.columns.find(x => x.name === td.dataset.c);
+    if (c.type === 'bool') { const r = findRow(td.dataset.r); r.cells[c.name] = /^(true|yes)$/i.test(r.cells[c.name]) ? 'FALSE' : 'TRUE'; r.touched = new Date().toISOString(); save(); render(); }
+    else startEdit(td);
+    return;
+  }
   const a = t.closest('[data-act]'); if (!a) return;
   const s = sheet(), r = a.dataset.r && findRow(a.dataset.r);
   switch (a.dataset.act) {
     case 'import': openImport(); break;
     case 'open': ui.drawer = a.dataset.r; renderDrawer(); break;
     case 'close': ui.drawer = null; renderDrawer(); break;
+    case 'fdim': { const c = a.dataset.c, v = a.dataset.v; if (ui.f[c] === v) delete ui.f[c]; else ui.f[c] = v; render(); break; }
+    case 'clearf': ui.f = {}; render(); break;
     case 'handled': r.handled ||= {}; r.handled[a.dataset.w] = parseDate(r.cells[a.dataset.w]); r.touched = new Date().toISOString(); save(); render(); break;
     case 'snooze': { const d = parseDate(r.cells[a.dataset.w]); r.cells[a.dataset.w] = addDays(d, 7); save(); render(); break; }
     case 'addrow': { const row = { id: uid(), touched: new Date().toISOString(), notes: [], handled: {}, cells: Object.fromEntries(s.columns.map(c => [c.name, ''])) }; s.rows.unshift(row); ui.sort = null; save(); render(); break; }
@@ -329,6 +563,8 @@ document.addEventListener('input', e => {
 document.addEventListener('change', e => {
   const t = e.target, s = sheet(); if (!s) return;
   if (t.id === 'sf') { ui.sf = t.value; render(); }
+  else if (t.dataset.fsel) { if (t.value) ui.f[t.dataset.fsel] = t.value; else delete ui.f[t.dataset.fsel]; render(); }
+  else if (t.dataset.ui) { ui[t.dataset.ui] = t.value; if (t.dataset.ui === 'measure') ui.agg = ''; render(); }
   else if (t.dataset.set) { s[t.dataset.set] = t.dataset.set === 'staleDays' ? Math.max(0, +t.value || 0) : t.value; save(); render(); }
   else if (t.dataset.watch) {
     const col = t.dataset.watch;
@@ -338,12 +574,12 @@ document.addEventListener('change', e => {
   else if (t.dataset.offset) { s.watches.find(w => w.col === t.dataset.offset).offset = +t.value || 0; save(); }
   else if (t.dataset.type) {
     const c = s.columns.find(x => x.name === t.dataset.type); c.type = t.value;
-    if (c.type === 'date') s.rows.forEach(r => { r.cells[c.name] = parseDate(r.cells[c.name]) || r.cells[c.name]; });
-    save(); render();
+    if (c.type === 'date') { c.order = dateOrder(s.rows.map(r => r.cells[c.name])); s.rows.forEach(r => { r.cells[c.name] = parseDate(r.cells[c.name], c.order) || r.cells[c.name]; }); }
+    ui.f = {}; save(); render();
   }
 });
-$('#wsSelect').addEventListener('change', e => { state.current = e.target.value; ui = { tab: ui.tab, sort: null, q: '', sf: '', drawer: null }; save(); render(); });
-$('#btnDelete').addEventListener('click', () => { const s = sheet(); if (s && confirm(`Delete "${s.name}"? This cannot be undone.`)) { state.sheets = state.sheets.filter(x => x !== s); state.current = state.sheets[0]?.id || null; save(); render(); } });
+$('#wsSelect').addEventListener('change', e => { state.current = e.target.value; ui = freshUI(); save(); render(); });
+$('#btnDelete').addEventListener('click', () => { const s = sheet(); if (s && confirm(`Delete "${s.name}"? This cannot be undone.`)) { state.sheets = state.sheets.filter(x => x !== s); state.current = state.sheets[0]?.id || null; ui = freshUI(); save(); render(); } });
 $('#btnExport').addEventListener('click', () => {
   const s = sheet(); if (!s) return;
   const q = v => /[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v;
@@ -353,20 +589,24 @@ $('#btnExport').addEventListener('click', () => {
 
 /* ---------- import ---------- */
 const dlg = $('#importDlg');
+let matrix = false, pendingFormulas = null;
 function openImport() { $('#importMsg').textContent = ''; $('#pasteIn').value = ''; $('#fileIn').value = ''; $('#nameIn').value = ''; dlg.showModal(); }
 $('#btnImport').addEventListener('click', openImport);
-let matrix = false;
 function addSheet(name, table) {
   if (table.length < 2) { $('#importMsg').textContent = 'Need a header row and at least one data row.'; return false; }
-  const s = buildSheet(name, table); state.sheets.push(s);
-  if (matrix) { s.statusCol = 'Block'; s.amountCol = ''; s.titleCol = 'Item'; s.watches = []; s.note = 'Matrix layout detected: side-by-side price blocks were converted to one record per block, section, item and plan.'; matrix = false; } state.current = s.id;
-  ui = { tab: s.watches.length ? 'today' : 'setup', sort: null, q: '', sf: '', drawer: null }; save(); render(); return true;
+  const s = buildSheet(name, table, pendingFormulas); state.sheets.push(s); state.current = s.id; pendingFormulas = null;
+  if (matrix) { s.statusCol = 'Block'; s.titleCol = 'Item'; s.watches = []; s.note = 'Matrix layout detected: side-by-side price blocks were converted to one record per block, section, item and plan.'; matrix = false; }
+  ui = freshUI(); save(); render(); return true;
 }
 async function fileToText(f) {
+  pendingFormulas = null;
   if (/\.xlsx?$/i.test(f.name)) {
     if (!window.XLSX) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load the Excel reader (offline?). Save as CSV instead.')); document.head.append(sc); });
-    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true });
-    return XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { dateNF: 'yyyy-mm-dd' });
+    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true, cellFormula: true });
+    const ws = wb.Sheets[wb.SheetNames[0]], rng = XLSX.utils.decode_range(ws['!ref']), fm = {};
+    for (const addr of Object.keys(ws)) { if (addr[0] === '!' || !ws[addr].f) continue; const c = XLSX.utils.decode_cell(addr).c - rng.s.c; fm[c] ||= ws[addr].f; }
+    pendingFormulas = fm;
+    return XLSX.utils.sheet_to_csv(ws, { dateNF: 'yyyy-mm-dd' });
   }
   return f.text();
 }
@@ -375,10 +615,11 @@ $('#goImport').addEventListener('click', async () => {
     const f = $('#fileIn').files[0], pasted = $('#pasteIn').value.trim();
     if (!f && !pasted) { $('#importMsg').textContent = 'Choose a file or paste some cells first.'; return; }
     const text = f ? await fileToText(f) : pasted;
+    if (!f) pendingFormulas = null;
     let table = parseTable(text);
     const blank = table[0] ? table[0].filter(c => !c.trim()).length / table[0].length : 0;
     const flat = blank > .3 && unpivot(parseTable(text, true));
-    if (flat) { table = flat; matrix = true; }
+    if (flat) { table = flat; matrix = true; pendingFormulas = null; }
     const name = $('#nameIn').value.trim() || (f ? f.name.replace(/\.[^.]+$/, '') : 'Pasted sheet');
     if (addSheet(name, table)) dlg.close();
   } catch (err) { $('#importMsg').textContent = err.message; }
@@ -390,6 +631,7 @@ const SAMPLES = {
 };
 dlg.addEventListener('click', e => {
   const k = e.target.dataset?.sample; if (!k) return;
+  pendingFormulas = null;
   if (addSheet(k === 'customers' ? 'Sample customers' : 'Sample salaries', parseTable(SAMPLES[k]()))) dlg.close();
 });
 

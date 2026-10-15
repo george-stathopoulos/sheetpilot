@@ -5,7 +5,10 @@ Turn any spreadsheet into a tracked workflow with reminders and insights. Custom
 ## MVP features
 
 - Import CSV, Excel (.xlsx via SheetJS from a CDN) or pasted cells
-- Automatic column type detection (text, number, money, date, status, email), editable in Setup
+- Reads messy sheets: finds the real header row (even under label rows), day-first or month-first dates, semicolon/tab/comma delimiters
+- Works out what each column is (text, number, money, percent, date, status, yes/no, link, long text), editable in Setup
+- Discovers the calculation logic between columns (sums, ratios, copies) and flags rows that break it; shows real formulas when you upload .xlsx (untested)
+- Builds an interactive dashboard from that: filters, KPI cards, grouped bars (click to filter), trend line, criteria heatmap, distribution, lowest/highest list
 - Editable table with search, status filter and sorting
 - Reminders: choose which date columns trigger them, with an offset (e.g. -30 days before a contract end); Done and +7d buttons
 - "Gone quiet" rule: flag rows with no activity for N days
