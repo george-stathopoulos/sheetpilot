@@ -44,7 +44,7 @@ function num(v) {
 const fmtNum = n => n == null ? '' : new Intl.NumberFormat(undefined, { maximumFractionDigits: 2 }).format(n);
 
 /* ---------- parsing ---------- */
-function parseTable(text) {
+function parseTable(text, keepBlank) {
   text = text.replace(/^﻿/, '');
   const first = text.split(/\r?\n/, 1)[0];
   const delim = [['\t', first.split('\t').length], [';', first.split(';').length], [',', first.split(',').length]].sort((a, b) => b[1] - a[1])[0][0];
@@ -58,7 +58,45 @@ function parseTable(text) {
     else cur += c;
   }
   if (cur || row.length) { row.push(cur); rows.push(row); }
+  if (keepBlank) return rows;
   return rows.filter(r => r.some(c => c.trim() !== ''));
+}
+
+
+/* ---------- matrix layouts (price lists, side-by-side blocks) -> records ---------- */
+function unpivot(raw) {
+  const W = Math.max(0, ...raw.map(r => r.length)), g = (r, c) => (raw[r][c] ?? '').trim();
+  const isNum = v => v !== '' && /^[\s$€£]*-?[\d.,]+\s*%?$/.test(v);
+  const emptyCol = c => raw.every((_, r) => g(r, c) === '');
+  const bands = []; let start = null;
+  for (let c = 0; c <= W; c++) { const e = c === W || emptyCol(c); if (!e && start === null) start = c; if (e && start !== null) { bands.push([start, c - 1]); start = null; } }
+  const out = [['Block', 'Section', 'Item', 'Currency', 'Plan', 'Value', 'Unit']];
+  for (const [c0, c1] of bands) {
+    const cols = r => { const a = []; for (let c = c0; c <= c1; c++) if (g(r, c) !== '') a.push(c); return a; };
+    const r0 = raw.findIndex((_, r) => cols(r).length);
+    if (r0 < 0) continue;
+    let block = g(r0, cols(r0)[0]);
+    if (raw[r0 + 1] && cols(r0 + 1)[0] === cols(r0)[0]) block += ' – ' + g(r0 + 1, cols(r0 + 1)[0]);
+    let section = '';
+    for (let r = r0 + 1; r < raw.length; r++) {
+      const cs = cols(r);
+      if (cs.length === 1 && !isNum(g(r, cs[0]))) { section = g(r, cs[0]); continue; }
+      if (cs.length < 4 || cs.some(c => isNum(g(r, c)))) continue;
+      let nxt = r + 1; while (nxt < raw.length && nxt <= r + 3 && !cols(nxt).length) nxt++;
+      if (!raw[nxt] || cols(nxt).filter(c => isNum(g(nxt, c))).length < 3) continue;
+      const hasCur = g(r, cs[0]).toLowerCase() === 'currency', plans = hasCur ? cs.slice(1) : cs, labelCol = cs[0] - 1;
+      let started = false, rr = r + 1;
+      for (; rr < raw.length; rr++) {
+        if (!cols(rr).length) { if (started) break; continue; }
+        if (!plans.some(c => isNum(g(rr, c)))) break;
+        started = true;
+        const cur = hasCur ? g(rr, cs[0]) : '', label = labelCol >= c0 ? g(rr, labelCol) : '';
+        for (const pc of plans) { const v = g(rr, pc); if (v !== '') out.push([block, section, label, cur, g(r, pc), String(num(v)), v.includes('%') ? '%' : cur]); }
+      }
+      r = rr - 1;
+    }
+  }
+  return out.length > 1 ? out : null;
 }
 
 const DONE_RE = /^(won|lost|closed|done|paid|complete[d]?|resolved|inactive|left|terminated|cancel+ed|archived|rejected)$/i;
@@ -130,7 +168,7 @@ function render() {
   document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === ui.tab));
   const s = sheet(); const m = $('#main');
   if (!s) { m.innerHTML = `<div class="card"><h2>Turn any sheet into a tracked workflow</h2><p class="muted">Import a CSV or Excel file, paste cells, or try a sample (customers, salaries). SheetPilot detects dates, money and statuses, then gives you reminders and insights.</p><button class="primary" data-act="import">Import a sheet</button></div>`; renderDrawer(); return; }
-  m.innerHTML = { today: viewToday, table: viewTable, insights: viewInsights, setup: viewSetup }[ui.tab](s);
+  m.innerHTML = (s.note ? `<p class="card muted">${esc(s.note)}</p>` : '') + { today: viewToday, table: viewTable, insights: viewInsights, setup: viewSetup }[ui.tab](s);
   renderDrawer();
 }
 
@@ -317,24 +355,30 @@ $('#btnExport').addEventListener('click', () => {
 const dlg = $('#importDlg');
 function openImport() { $('#importMsg').textContent = ''; $('#pasteIn').value = ''; $('#fileIn').value = ''; $('#nameIn').value = ''; dlg.showModal(); }
 $('#btnImport').addEventListener('click', openImport);
+let matrix = false;
 function addSheet(name, table) {
   if (table.length < 2) { $('#importMsg').textContent = 'Need a header row and at least one data row.'; return false; }
-  const s = buildSheet(name, table); state.sheets.push(s); state.current = s.id;
+  const s = buildSheet(name, table); state.sheets.push(s);
+  if (matrix) { s.statusCol = 'Block'; s.amountCol = ''; s.titleCol = 'Item'; s.watches = []; s.note = 'Matrix layout detected: side-by-side price blocks were converted to one record per block, section, item and plan.'; matrix = false; } state.current = s.id;
   ui = { tab: s.watches.length ? 'today' : 'setup', sort: null, q: '', sf: '', drawer: null }; save(); render(); return true;
 }
-async function fileToTable(f) {
+async function fileToText(f) {
   if (/\.xlsx?$/i.test(f.name)) {
     if (!window.XLSX) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load the Excel reader (offline?). Save as CSV instead.')); document.head.append(sc); });
     const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true });
-    return parseTable(XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { dateNF: 'yyyy-mm-dd' }));
+    return XLSX.utils.sheet_to_csv(wb.Sheets[wb.SheetNames[0]], { dateNF: 'yyyy-mm-dd' });
   }
-  return parseTable(await f.text());
+  return f.text();
 }
 $('#goImport').addEventListener('click', async () => {
   try {
     const f = $('#fileIn').files[0], pasted = $('#pasteIn').value.trim();
     if (!f && !pasted) { $('#importMsg').textContent = 'Choose a file or paste some cells first.'; return; }
-    const table = f ? await fileToTable(f) : parseTable(pasted);
+    const text = f ? await fileToText(f) : pasted;
+    let table = parseTable(text);
+    const blank = table[0] ? table[0].filter(c => !c.trim()).length / table[0].length : 0;
+    const flat = blank > .3 && unpivot(parseTable(text, true));
+    if (flat) { table = flat; matrix = true; }
     const name = $('#nameIn').value.trim() || (f ? f.name.replace(/\.[^.]+$/, '') : 'Pasted sheet');
     if (addSheet(name, table)) dlg.close();
   } catch (err) { $('#importMsg').textContent = err.message; }
