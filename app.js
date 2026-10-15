@@ -33,11 +33,12 @@ function parseDate(v, order) {
   if ((m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T ].*)?$/))) return valid(+m[1], +m[2], +m[3]);
   if ((m = s.match(/^(\d{1,2})([\/.\-])(\d{1,2})\2(\d{2,4})$/))) {
     const a = +m[1], b = +m[3]; let y = +m[4]; if (y < 100) y += 2000;
-    const dmy = a > 12 ? true : b > 12 ? false : order ? order === 'dmy' : m[2] === '.';
+    const dmy = a > 12 ? true : b > 12 ? false : order ? order === 'dmy' : m[2] === '.' || localeDMY;
     return dmy ? valid(y, b, a) : valid(y, a, b);
   }
   return null;
 }
+const localeDMY = (() => { try { const p = new Intl.DateTimeFormat(navigator.language).formatToParts(new Date(2001, 10, 25)).map(x => x.type); return p.indexOf('day') < p.indexOf('month'); } catch (e) { return false; } })();
 function dateOrder(vals) {
   let dots = 0, others = 0;
   for (const v of vals) { const m = String(v).trim().match(/^(\d{1,2})([\/.\-])(\d{1,2})\2\d{2,4}$/); if (m) { if (+m[1] > 12) return 'dmy'; if (+m[3] > 12) return 'mdy'; m[2] === '.' ? dots++ : others++; } }
@@ -137,9 +138,11 @@ function pickHeader(table) {
   return h;
 }
 
-function buildSheet(name, table, formulas) {
+function buildSheet(name, table, fx) {
+  const formulas = fx?.fm;
   const h = pickHeader(table), above = table.slice(0, h), body = table.slice(h + 1);
-  const raw = table[h].map(x => (x || '').trim());
+  let raw = table[h].map(x => (x || '').trim());
+  const hEnd = raw.reduce((e, x, i) => x ? i : e, -1); raw = raw.slice(0, hEnd + 1); // ignore stray cells right of the table
   const W = raw.length;
   const counts = {}; raw.forEach(x => { counts[x] = (counts[x] || 0) + 1; });
   const aboveCell = i => above.map(r => (r[i] || '').trim()).filter(Boolean);
@@ -156,15 +159,32 @@ function buildSheet(name, table, formulas) {
     return { name: n, type, order: type === 'date' ? dateOrder(vals) : undefined, desc, formula: formulas?.[i] || '' };
   });
   const now = new Date().toISOString();
-  const rows = body.map(r => ({
+  const resolved = [];
+  columns.forEach((c, i) => {
+    if (c.type !== 'date' || c.order) return;
+    const sure = body.map(r => String(r[i] ?? '').trim()).filter(v => !/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-]\d{2,4}$/.test(v) || (+RegExp.$1 > 12 || +RegExp.$2 > 12)).map(v => parseDate(v)).filter(Boolean).sort();
+    if (!sure.length) return;
+    const mid = toUTC(sure[sure.length >> 1]);
+    c.fix = {};
+    body.forEach(r => {
+      const v = String(r[i] ?? '').trim(), m = v.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/);
+      if (!m || +m[1] > 12 || +m[2] > 12 || m[1] === m[2]) return;
+      const y = +m[3] < 100 ? 2000 + +m[3] : +m[3], a = valid(y, +m[2], +m[1]), b = valid(y, +m[1], +m[2]);
+      if (a && b) { const pick = Math.abs(toUTC(a) - mid) <= Math.abs(toUTC(b) - mid) ? a : b; c.fix[v] = pick; resolved.push(`${v} → ${pick}`); }
+    });
+  });
+  const ambiguous = columns.reduce((t, c, i) => t + (c.type === 'date' && !c.order && !c.fix ? body.filter(r => { const m = String(r[i] ?? '').trim().match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-]\d{2,4}$/); return m && +m[1] <= 12 && +m[2] <= 12 && m[1] !== m[2]; }).length : 0), 0);
+  const fcols = new Set(Object.keys(formulas || {}).map(Number));
+  const rows = body.filter(r => !formulas || r.some((v, i) => i <= hEnd && !fcols.has(i) && String(v ?? '').trim() !== '')).map(r => ({
     id: uid(), touched: now, notes: [], handled: {},
-    cells: Object.fromEntries(columns.map((c, i) => [c.name, c.type === 'date' ? (parseDate(r[i], c.order) || (r[i] ?? '').trim()) : (r[i] ?? '').trim()]))
+    cells: Object.fromEntries(columns.map((c, i) => [c.name, c.type === 'date' ? (c.fix?.[String(r[i] ?? '').trim()] || parseDate(r[i], c.order) || (r[i] ?? '').trim()) : (r[i] ?? '').trim()]))
   }));
   const distinct = c => new Set(rows.map(r => r.cells[c.name]).filter(v => v !== '')).size;
   const statusCol = columns.find(c => c.type === 'status' && distinct(c) >= 2)?.name || '';
   const doneStatuses = statusCol ? [...new Set(rows.map(r => r.cells[statusCol]).filter(v => DONE_RE.test(v)))].join(', ') : '';
   return {
-    id: uid(), name, columns, rows, statusCol, doneStatuses,
+    note: resolved.length ? `Ambiguous date${resolved.length > 1 ? 's' : ''} resolved from the neighbouring dates: ${resolved.slice(0, 3).join(', ')}.` : ambiguous ? `${ambiguous} date${ambiguous > 1 ? 's are' : ' is'} written like 05/10/2026 and could be day-first or month-first; assumed ${localeDMY ? 'day-first' : 'month-first'}. Check in the Table tab.` : '',
+    id: uid(), name, columns, rows, statusCol, doneStatuses, fOff: fx?.off || 0,
     titleCol: (columns.find(c => c.type === 'text' && distinct(c) > 1) || columns.find(c => c.type === 'text') || columns[0]).name,
     lastCol: columns.find(c => c.type === 'date' && /last|contact|touch/i.test(c.name))?.name || '',
     staleDays: 0,
@@ -234,7 +254,7 @@ function discoverLogic(s) {
 }
 const colLetter = n => { let s = ''; n++; while (n > 0) { const m = (n - 1) % 26; s = String.fromCharCode(65 + m) + s; n = Math.floor((n - 1) / 26); } return s; };
 const letterIdx = L => L.split('').reduce((t, ch) => t * 26 + ch.charCodeAt(0) - 64, 0) - 1;
-const readableFormula = (s, f) => '=' + f.replace(/\$?([A-Z]{1,3})\$?\d+/g, (m, L) => `[${s.columns[letterIdx(L)]?.name ?? L}]`);
+const readableFormula = (s, f) => '=' + f.replace(/\$?([A-Z]{1,3})\$?\d+/g, (m, L) => `[${s.columns[letterIdx(L) - (s.fOff || 0)]?.name ?? L}]`);
 
 /* ---------- profile: what is each column for? ---------- */
 const dist = (s, c) => new Set(s.rows.map(r => r.cells[c.name]).filter(v => v !== '' && v != null));
@@ -415,9 +435,9 @@ function viewDash(s) {
     <ul class="logic">
     <li>Each row is labelled by <b>${esc(s.titleCol)}</b>${P.primary ? `; main number: <b>${esc(P.primary)}</b>` : ''}${P.criteria.length ? `; ${P.criteria.length} scored criteria` : ''}${P.time ? `; timeline: <b>${esc(P.time)}</b>` : ''}.</li>
     ${P.dims.length ? `<li>Can be grouped by: ${P.dims.map(esc).join(', ')}.</li>` : ''}
-    ${s.columns.filter(c => c.formula).map(c => `<li><b>${esc(c.name)}</b> is a formula in your file: <code>${esc(readableFormula(s, c.formula))}</code></li>`).join('')}
-    ${P.rules.map(r => `<li>${esc(r.text)} <span class="badge ${r.bad.length ? 'amber' : 'green'}">${r.bad.length ? `${r.bad.length} of ${r.checked} rows differ` : `holds in all ${r.checked} rows`}</span>${r.bad.length ? ' ' + r.bad.slice(0, 5).map(id => `<a data-act="open" data-r="${id}">${esc(title(s, s.rows.find(x => x.id === id)))}</a>`).join(', ') : ''}</li>`).join('')}
-    </ul>${P.rules.length && !s.columns.some(c => c.formula) ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}</details>`;
+    ${s.columns.filter(c => c.formula).map(c => `<li><b>${esc(c.name)}</b> is calculated in your file by <code>${esc(readableFormula(s, c.formula))}</code></li>`).join('')}
+    ${P.rules.filter(r => !s.columns.find(c => c.name === r.col)?.formula).map(r => `<li>${esc(r.text)} <span class="badge ${r.bad.length ? 'amber' : 'green'}">${r.bad.length ? `${r.bad.length} of ${r.checked} rows differ` : `holds in all ${r.checked} rows`}</span>${r.bad.length ? ' ' + r.bad.slice(0, 5).map(id => `<a data-act="open" data-r="${id}">${esc(title(s, s.rows.find(x => x.id === id)))}</a>`).join(', ') : ''}</li>`).join('')}
+    </ul>${P.rules.length && !s.columns.some(c => c.formula) && !s.fromXlsx ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}</details>`;
   return h;
 }
 
@@ -543,7 +563,7 @@ document.addEventListener('click', e => {
     return;
   }
   const a = t.closest('[data-act]'); if (!a) return;
-  const s = sheet(), r = a.dataset.r && findRow(a.dataset.r);
+  const s = sheet(), r = findRow(a.dataset.r || ui.drawer);
   switch (a.dataset.act) {
     case 'import': openImport(); break;
     case 'open': ui.drawer = a.dataset.r; renderDrawer(); break;
@@ -589,39 +609,57 @@ $('#btnExport').addEventListener('click', () => {
 
 /* ---------- import ---------- */
 const dlg = $('#importDlg');
-let matrix = false, pendingFormulas = null;
+let matrix = false;
 function openImport() { $('#importMsg').textContent = ''; $('#pasteIn').value = ''; $('#fileIn').value = ''; $('#nameIn').value = ''; dlg.showModal(); }
 $('#btnImport').addEventListener('click', openImport);
-function addSheet(name, table) {
-  if (table.length < 2) { $('#importMsg').textContent = 'Need a header row and at least one data row.'; return false; }
-  const s = buildSheet(name, table, pendingFormulas); state.sheets.push(s); state.current = s.id; pendingFormulas = null;
+function addSheet(name, table, fx) {
+  if (table.length < 2) return null;
+  const s = buildSheet(name, table, fx);
+  if (!s.rows.length) return null;
+  if (fx) s.fromXlsx = true;
+  state.sheets.push(s); state.current = s.id;
   if (matrix) { s.statusCol = 'Block'; s.titleCol = 'Item'; s.watches = []; s.note = 'Matrix layout detected: side-by-side price blocks were converted to one record per block, section, item and plan.'; matrix = false; }
-  ui = freshUI(); save(); render(); return true;
+  return s;
 }
-async function fileToText(f) {
-  pendingFormulas = null;
-  if (/\.xlsx?$/i.test(f.name)) {
-    if (!window.XLSX) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load the Excel reader (offline?). Save as CSV instead.')); document.head.append(sc); });
-    const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true, cellFormula: true });
-    const ws = wb.Sheets[wb.SheetNames[0]], rng = XLSX.utils.decode_range(ws['!ref']), fm = {};
+const formulaOnly = (table, fx) => {
+  if (table.length < 2) return true;
+  const fcols = new Set(Object.keys(fx.fm).map(Number)), h = pickHeader(table), hEnd = table[h].reduce((e, x, i) => x.trim() ? i : e, -1);
+  return !table.slice(h + 1).some(r => r.some((v, i) => i <= hEnd && !fcols.has(i) && String(v ?? '').trim() !== ''));
+};
+const tableOf = text => {
+  let table = parseTable(text);
+  const blank = table[0] ? table[0].filter(c => !c.trim()).length / table[0].length : 0;
+  const flat = blank > .3 && unpivot(parseTable(text, true));
+  if (flat) { matrix = true; return { table: flat, flat: true }; }
+  return { table };
+};
+// returns [{ name, text, fx }] — one entry per tab for Excel files
+async function fileToSheets(f) {
+  const base = f.name.replace(/\.[^.]+$/, '');
+  if (!/\.xlsx?$/i.test(f.name)) return [{ name: base, text: await f.text() }];
+  if (!window.XLSX) await new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js'; sc.onload = res; sc.onerror = () => rej(new Error('Could not load the Excel reader (offline?). Save as CSV instead.')); document.head.append(sc); });
+  const wb = XLSX.read(await f.arrayBuffer(), { cellDates: true, cellFormula: true, dateNF: 'yyyy-mm-dd' });
+  return wb.SheetNames.filter(n => wb.Sheets[n]['!ref']).map(n => {
+    const ws = wb.Sheets[n], rng = XLSX.utils.decode_range(ws['!ref']), fm = {};
     for (const addr of Object.keys(ws)) { if (addr[0] === '!' || !ws[addr].f) continue; const c = XLSX.utils.decode_cell(addr).c - rng.s.c; fm[c] ||= ws[addr].f; }
-    pendingFormulas = fm;
-    return XLSX.utils.sheet_to_csv(ws, { dateNF: 'yyyy-mm-dd' });
-  }
-  return f.text();
+    return { name: wb.SheetNames.length > 1 ? `${base} · ${n}` : base, text: XLSX.utils.sheet_to_csv(ws, { dateNF: 'yyyy-mm-dd' }), fx: { fm, off: rng.s.c } };
+  });
 }
 $('#goImport').addEventListener('click', async () => {
   try {
-    const f = $('#fileIn').files[0], pasted = $('#pasteIn').value.trim();
+    const f = $('#fileIn').files[0], pasted = $('#pasteIn').value.trim(), custom = $('#nameIn').value.trim();
     if (!f && !pasted) { $('#importMsg').textContent = 'Choose a file or paste some cells first.'; return; }
-    const text = f ? await fileToText(f) : pasted;
-    if (!f) pendingFormulas = null;
-    let table = parseTable(text);
-    const blank = table[0] ? table[0].filter(c => !c.trim()).length / table[0].length : 0;
-    const flat = blank > .3 && unpivot(parseTable(text, true));
-    if (flat) { table = flat; matrix = true; pendingFormulas = null; }
-    const name = $('#nameIn').value.trim() || (f ? f.name.replace(/\.[^.]+$/, '') : 'Pasted sheet');
-    if (addSheet(name, table)) dlg.close();
+    const items = f ? await fileToSheets(f) : [{ name: 'Pasted sheet', text: pasted }];
+    const added = [], skipped = [];
+    for (const it of items) {
+      if (it.fx && formulaOnly(parseTable(it.text), it.fx)) { skipped.push(it.name); continue; }
+      const { table, flat } = tableOf(it.text);
+      const s = addSheet(items.length === 1 && custom ? custom : it.name, table, flat ? null : it.fx);
+      s ? added.push(s) : skipped.push(it.name);
+    }
+    if (!added.length) { $('#importMsg').textContent = 'Need a header row and at least one data row.'; return; }
+    if (skipped.length) added.at(-1).note = [added.at(-1).note, `Skipped ${skipped.length} empty tab${skipped.length > 1 ? 's' : ''} (formulas but no data): ${skipped.join(', ')}.`].filter(Boolean).join(' ');
+    state.current = added[0].id; ui = freshUI(); save(); render(); dlg.close();
   } catch (err) { $('#importMsg').textContent = err.message; }
 });
 const off = n => addDays(todayISO(), n);
@@ -631,8 +669,7 @@ const SAMPLES = {
 };
 dlg.addEventListener('click', e => {
   const k = e.target.dataset?.sample; if (!k) return;
-  pendingFormulas = null;
-  if (addSheet(k === 'customers' ? 'Sample customers' : 'Sample salaries', parseTable(SAMPLES[k]()))) dlg.close();
+  if (addSheet(k === 'customers' ? 'Sample customers' : 'Sample salaries', parseTable(SAMPLES[k]()))) { ui = freshUI(); save(); render(); dlg.close(); }
 });
 
 render();
