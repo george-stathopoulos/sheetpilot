@@ -12,13 +12,16 @@
   <select id="wsSelect" title="Switch sheet"></select>
   <div class="spacer"></div>
   <button id="btnImport" class="primary">Import sheet</button>
-  <button id="btnExport">Export CSV</button>
+  <button id="btnOut">Export…</button>
+  <button id="btnShare">Share…</button>
   <button id="btnDelete" class="danger">Delete sheet</button>
 </header>
 
 <nav class="tabs" id="tabs"></nav>
 
+<div id="sharebar"></div>
 <main id="main"></main>
+<div id="viewer" hidden></div>
 
 <aside id="drawer" class="drawer" hidden></aside>
 
@@ -41,6 +44,9 @@
   </form>
 </dialog>
 
+<dialog id="outDlg"><form method="dialog" class="dlg" id="outForm"></form></dialog>
+
+<footer class="credit" id="credit"></footer>
 <script src="app.js"></script>
 </body>
 </html>

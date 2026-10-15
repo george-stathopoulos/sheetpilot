@@ -10,8 +10,26 @@ let state = { sheets: [], current: null };
 const freshUI = tab => ({ tab: tab || 'dash', sort: null, q: '', sf: '', drawer: null, f: {}, dim: '', measure: '', agg: '' });
 let ui = freshUI();
 try { state = JSON.parse(localStorage.getItem(KEY)) || state; } catch (e) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
-const sheet = () => state.sheets.find(s => s.id === state.current);
+const save = () => { if (shared) return; try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {} };
+let shared = null; // a dashboard opened from a share link (kept in memory only)
+const sheet = () => shared || state.sheets.find(s => s.id === state.current);
+const BRAND = 'SheetPilot';
+const HOME = 'https://george-stathopoulos.github.io/';
+const PROJECTS = [['Gatehouse', HOME + 'gatehouse/'], ['Helpdesk Hero', HOME + 'helpdesk-hero/'], ['Fixpass', HOME + 'fixpass/']];
+const THEMES = [
+  { id: 'clean', name: 'Clean', hint: 'General business, follows your light/dark setting', c: ['#f6f7f9', '#2f6bff'] },
+  { id: 'midnight', name: 'Midnight', hint: 'Tech, engineering, SaaS', c: ['#0e1117', '#58a6ff'] },
+  { id: 'corporate', name: 'Corporate', hint: 'Finance, consulting, enterprise', c: ['#eef1f5', '#1f3a68'] },
+  { id: 'forest', name: 'Forest', hint: 'Health, sustainability, agriculture', c: ['#f2f6f1', '#2e7d4f'] },
+  { id: 'sunset', name: 'Sunset', hint: 'Retail, hospitality, marketing', c: ['#fff7f0', '#e8590c'] },
+  { id: 'ocean', name: 'Ocean', hint: 'Logistics, travel, utilities', c: ['#eef7fa', '#0b7f9c'] },
+  { id: 'violet', name: 'Violet', hint: 'Agencies, creative, media', c: ['#f6f3ff', '#6d3df5'] },
+  { id: 'mono', name: 'Mono', hint: 'Legal, editorial, print-friendly', c: ['#ffffff', '#111111'] },
+  { id: 'rose', name: 'Rose', hint: 'Beauty, lifestyle, non-profit', c: ['#fff5f7', '#d6336c'] },
+  { id: 'paper', name: 'Paper', hint: 'Education, publishing, HR', c: ['#f5efe3', '#8a5a2b'] }
+];
+const curTheme = () => { const t = (sheet() || {}).theme || state.theme || 'clean'; return THEMES.some(x => x.id === t) ? t : 'clean'; };
+const creditsInner = () => `<div>${esc(BRAND)} dashboards · Made by <a href="${HOME}" target="_blank" rel="noopener">George Stathopoulos</a> — CV, projects and contact at <a href="${HOME}" target="_blank" rel="noopener">george-stathopoulos.github.io</a></div><div class="sub">Projects: ${PROJECTS.map(([n, u]) => `<a href="${u}" target="_blank" rel="noopener">${n}</a>`).join(' · ')} · Your data stays in your browser; nothing is uploaded.</div>`;
 const isNumT = t => t === 'number' || t === 'money' || t === 'percent';
 
 /* ---------- dates & numbers ---------- */
@@ -371,6 +389,10 @@ function title(s, r) {
 const TABS = [['dash', 'Dashboard'], ['rem', 'Reminders'], ['table', 'Table'], ['setup', 'Setup']];
 function render() {
   dupCache = null;
+  document.documentElement.dataset.theme = curTheme();
+  document.title = BRAND; $('.brand').innerHTML = `<b>${esc(BRAND)}</b>`; $('#credit').innerHTML = creditsInner();
+  document.body.classList.toggle('shared', !!shared);
+  $('#sharebar').innerHTML = shared ? `<div class="sharebar"><b>Shared dashboard</b><span class="muted">You're looking at a copy; your changes aren't saved.</span><button class="primary" data-act="savecopy">Save a copy to my sheets</button><a href="${esc(location.pathname)}">Make your own dashboard</a></div>` : '';
   $('#wsSelect').innerHTML = state.sheets.map(s => `<option value="${s.id}" ${s.id === state.current ? 'selected' : ''}>${esc(s.name)}</option>`).join('') || '<option>No sheets yet</option>';
   $('#tabs').innerHTML = TABS.map(([k, l]) => `<button data-tab="${k}" class="${ui.tab === k ? 'on' : ''}">${l}</button>`).join('');
   const s = sheet(); const m = $('#main');
@@ -401,6 +423,7 @@ function lineChart(points, fmt) {
     <text x="4" y="${Y(hi) + 4}" class="ax">${fmt(hi)}</text>${hi !== lo ? `<text x="4" y="${Y(lo) + 4}" class="ax">${fmt(lo)}</text>` : ''}</svg>`;
 }
 
+const sec = (id, label, html) => `<section data-sec="${id}" data-label="${esc(label)}">${html}</section>`;
 const POL = { high: 'Higher is better', low: 'Lower is better', neutral: 'No good or bad direction' };
 function timeSeries(rows, timeC, mc, agg) {
   const days = new Set(rows.map(r => r.cells[timeC.name]).filter(Boolean));
@@ -471,7 +494,10 @@ function viewDash(s) {
 
   // header summary
   const dates = timeC ? rows.map(r => r.cells[timeC.name]).filter(Boolean).sort() : [];
-  h += `<div class="summary"><b>${rows.length}${nActive ? ` of ${total}` : ''} rows</b>${dates.length ? ` · ${esc(timeC.name)}: ${esc(dates[0])} → ${esc(dates.at(-1))}` : ''}${P.constants.length ? `<div class="muted">Same on every row: ${P.constants.map(c => `${esc(c.name)} = ${esc(s.rows.find(r => r.cells[c.name] !== '')?.cells[c.name])}`).join(' · ')}</div>` : ''}</div>`;
+  h += sec('summary', 'Row count and date range', `<div class="summary"><b>${rows.length}${nActive ? ` of ${total}` : ''} rows</b>${dates.length ? ` · ${esc(timeC.name)}: ${esc(dates[0])} → ${esc(dates.at(-1))}` : ''}${P.constants.length ? `<div class="muted">Same on every row: ${P.constants.map(c => `${esc(c.name)} = ${esc(s.rows.find(r => r.cells[c.name] !== '')?.cells[c.name])}`).join(' · ')}</div>` : ''}</div>`);
+
+  // style picker
+  h += `<div class="themebar"><b>Style</b>${THEMES.map(t => `<button class="chip ${t.id === curTheme() ? 'on' : ''}" style="--c1:${t.c[0]};--c2:${t.c[1]}" data-act="theme" data-t="${t.id}" title="${esc(t.name)} — ${esc(t.hint)}" aria-label="${esc(t.name)}"><i></i><i></i></button>`).join('')}<span class="muted">${esc(THEMES.find(t => t.id === curTheme()).name)} · ${esc(THEMES.find(t => t.id === curTheme()).hint)}</span></div>`;
 
   // filters
   const fcols = [...P.dims, ...P.bools.map(c => c.name)].slice(0, 6);
@@ -487,32 +513,32 @@ function viewDash(s) {
   P.bools.slice(0, 3).forEach(c => { const t = rows.filter(r => /^(true|yes)$/i.test(r.cells[c.name])).length; cards.push(`<div class="card ${t ? 'green' : ''}"><div class="n">${t}<span class="muted"> / ${rows.length}</span></div>${esc(c.name)}</div>`); });
   P.longs.slice(0, 2).forEach(c => cards.push(`<div class="card"><div class="n">${rows.filter(r => r.cells[c.name]).length}</div>Rows with ${esc(c.name)}</div>`));
   if (s.watches.length) { const a = analyse(s); cards.push(`<div class="card ${a.overdue.length ? 'red' : ''}" data-tab-go="rem" style="cursor:pointer"><div class="n">${a.overdue.length}</div>Overdue reminders</div>`); }
-  h += `<div class="cards">${cards.join('')}</div>`;
+  h += sec('kpis', 'Key numbers', `<div class="cards">${cards.join('')}</div>`);
 
   // findings
   const F = findings(s, P, rows, groups, series);
-  if (F.length) h += `<h2>Key findings</h2><div class="card"><ul class="logic">${F.map(f => `<li>${f}</li>`).join('')}</ul></div>`;
+  if (F.length) h += sec('findings', 'Key findings', `<h2>Key findings</h2><div class="card"><ul class="logic">${F.map(f => `<li>${f}</li>`).join('')}</ul></div>`);
 
   // grouped bars
   if (dim && groups.length >= 2) {
     const g = groups.slice(0, 25), max = Math.max(...g.map(x => Math.abs(x.v)), 1e-9);
     const cls = (x, i) => { if (polarity === 'neutral' || !mc || agg === 'count' || g.length < 3) return ''; if (i === 0) return polarity === 'high' ? 'best' : 'worst'; if (i === g.length - 1) return polarity === 'high' ? 'worst' : 'best'; return ''; };
-    h += `<h2>${esc(aggName)} by ${esc(dim)}</h2><div class="tools"><select data-role="agg">${opts(Object.entries(AGGS).filter(([k]) => mc || k === 'count'), agg)}</select><select data-role="measure">${opts(P.allNum.map(c => [c.name]), mc?.name)}</select><span class="muted">by</span><select data-role="dim">${opts(P.dims.map(d => [d]), dim)}</select><select data-role="polarity" title="Used for colouring and the attention list">${opts(Object.entries(POL), polarity)}</select></div>
-      <div class="list bars">${g.map((x, i) => `<div class="brow ${ui.f[dim] === x.k ? 'on' : ''}" data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}"><div class="bl">${esc(x.k)}</div><div class="bt"><div class="bar ${cls(x, i)}" style="width:${Math.abs(x.v) / max * 100}%"></div></div><div class="bv">${fv(x.v)} <span class="muted">(${x.rs.length})</span></div></div>`).join('')}</div><p class="muted">Click a bar to filter the page.${polarity !== 'neutral' && mc && agg !== 'count' ? ' Green = best, red = worst.' : ''}</p>`;
+    h += sec('bars', 'Comparison chart', `<h2>${esc(aggName)} by ${esc(dim)}</h2><div class="tools"><select data-role="agg">${opts(Object.entries(AGGS).filter(([k]) => mc || k === 'count'), agg)}</select><select data-role="measure">${opts(P.allNum.map(c => [c.name]), mc?.name)}</select><span class="muted">by</span><select data-role="dim">${opts(P.dims.map(d => [d]), dim)}</select><select data-role="polarity" title="Used for colouring and the attention list">${opts(Object.entries(POL), polarity)}</select></div>
+      <div class="list bars">${g.map((x, i) => `<div class="brow ${ui.f[dim] === x.k ? 'on' : ''}" data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}"><div class="bl">${esc(x.k)}</div><div class="bt"><div class="bar ${cls(x, i)}" style="width:${Math.abs(x.v) / max * 100}%"></div></div><div class="bv">${fv(x.v)} <span class="muted">(${x.rs.length})</span></div></div>`).join('')}</div><p class="muted"><span class="ui-only">Click a bar to filter the page.</span>${polarity !== 'neutral' && mc && agg !== 'count' ? ' Green = best, red = worst.' : ''}</p>`);
   }
 
   // trend
   if (series && series.points.length >= 3 && new Set(series.points.map(p => p.v)).size > 1)
-    h += `<h2>${esc(aggName)} over ${esc(timeC.name)}${series.cut < 10 ? ` (by ${series.cut === 7 ? 'month' : 'year'})` : ''}</h2><div class="card">${lineChart(series.points, fv)}</div>`;
+    h += sec('trend', 'Trend over time', `<h2>${esc(aggName)} over ${esc(timeC.name)}${series.cut < 10 ? ` (by ${series.cut === 7 ? 'month' : 'year'})` : ''}</h2><div class="card">${lineChart(series.points, fv)}</div>`);
 
   // heatmap of criteria
   if (P.criteria.length >= 2 && dim && groups.length >= 2) {
     const cc = P.criteria.map(n => s.columns.find(c => c.name === n)); const all = cc.flatMap(c => rows.map(r => num(r.cells[c.name]))).filter(x => x != null); const top = Math.max(...all, 1);
     const cell = rs => (c) => { const v = aggregate(rs, c.name, 'avg'); return v == null ? '<td>–</td>' : `<td style="background:hsla(${Math.max(0, Math.min(1, v / top)) ** 2 * 120},70%,45%,.38)">${fmtNum(v)}</td>`; };
     const gl = groups.slice().sort((a, b) => String(a.k).localeCompare(String(b.k))).slice(0, 40);
-    h += `<h2>${esc(P.rules.find(r => r.kind === 'sum')?.col ? 'Breakdown of ' + P.rules.find(r => r.kind === 'sum').col : 'Criteria')} by ${esc(dim)}</h2><div class="tablewrap"><table class="heat"><thead><tr><th>${esc(dim)}</th>${cc.map(c => `<th title="${esc(c.desc)}">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
+    h += sec('heat', 'Criteria heatmap', `<h2>${esc(P.rules.find(r => r.kind === 'sum')?.col ? 'Breakdown of ' + P.rules.find(r => r.kind === 'sum').col : 'Criteria')} by ${esc(dim)}</h2><div class="tablewrap"><table class="heat"><thead><tr><th>${esc(dim)}</th>${cc.map(c => `<th title="${esc(c.desc)}">${esc(c.name)}</th>`).join('')}</tr></thead><tbody>
       <tr class="all"><td><b>All (${rows.length})</b></td>${cc.map(cell(rows)).join('')}</tr>
-      ${gl.map(x => `<tr class="${ui.f[dim] === x.k ? 'on' : ''}"><td><a data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}">${esc(x.k)}</a> <span class="muted">(${x.rs.length})</span></td>${cc.map(cell(x.rs)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">Colour: green = high, red = low. Hover a column title for its description.</p>`;
+      ${gl.map(x => `<tr class="${ui.f[dim] === x.k ? 'on' : ''}"><td><a data-act="fdim" data-c="${esc(dim)}" data-v="${esc(x.k)}">${esc(x.k)}</a> <span class="muted">(${x.rs.length})</span></td>${cc.map(cell(x.rs)).join('')}</tr>`).join('')}</tbody></table></div><p class="muted">Colour: green = high, red = low. Hover a column title for its description.</p>`);
   }
 
   // distribution
@@ -524,7 +550,7 @@ function viewDash(s) {
       if (distinct.length <= 8) bins = distinct.map(v => ({ l: fmtVal(mc, v), n: vals.filter(x => x === v).length }));
       else { const w = (hi - lo) / 8; bins = Array.from({ length: 8 }, (_, i) => ({ l: fmtNum(lo + i * w), n: 0 })); vals.forEach(v => { bins[Math.min(7, Math.floor((v - lo) / w))].n++; }); }
       const mx = Math.max(...bins.map(b => b.n), 1);
-      h += `<h2>Distribution of ${esc(mc.name)}</h2><div class="card"><div class="hist">${bins.map(b => `<div class="hcol"><div class="hn">${b.n}</div><div class="hbar" style="height:${b.n / mx * 100}px"></div><div class="hl">${esc(b.l)}</div></div>`).join('')}</div></div>`;
+      h += sec('dist', 'Distribution', `<h2>Distribution of ${esc(mc.name)}</h2><div class="card"><div class="hist">${bins.map(b => `<div class="hcol"><div class="hn">${b.n}</div><div class="hbar" style="height:${b.n / mx * 100}px"></div><div class="hl">${esc(b.l)}</div></div>`).join('')}</div></div>`);
     }
   }
 
@@ -533,18 +559,18 @@ function viewDash(s) {
     const worstHigh = polarity !== 'high';
     const list = rows.map(r => ({ r, v: num(r.cells[mc.name]) })).filter(x => x.v != null).sort((a, b) => worstHigh ? b.v - a.v : a.v - b.v).slice(0, 5);
     const long = P.longs[0];
-    h += `<h2>${worstHigh ? 'Highest' : 'Lowest'} ${esc(mc.name)}${polarity === 'neutral' ? '' : ' — needs attention'}</h2><div class="list">${list.map(x => `<div class="item"><div class="t"><a data-act="open" data-r="${x.r.id}">${esc(title(s, x.r))}</a>${long ? `<div class="muted">${esc((x.r.cells[long.name] || '').slice(0, 160))}${(x.r.cells[long.name] || '').length > 160 ? '…' : ''}</div>` : ''}</div><span class="badge">${fv(x.v)}</span></div>`).join('') || '<div class="empty">Nothing here.</div>'}</div>`;
+    h += sec('attention', 'Highest / lowest rows', `<h2>${worstHigh ? 'Highest' : 'Lowest'} ${esc(mc.name)}${polarity === 'neutral' ? '' : ' — needs attention'}</h2><div class="list">${list.map(x => `<div class="item"><div class="t"><a data-act="open" data-r="${x.r.id}">${esc(title(s, x.r))}</a>${long ? `<div class="muted">${esc((x.r.cells[long.name] || '').slice(0, 160))}${(x.r.cells[long.name] || '').length > 160 ? '…' : ''}</div>` : ''}</div><span class="badge">${fv(x.v)}</span></div>`).join('') || '<div class="empty">Nothing here.</div>'}</div>`);
   }
 
   // checks + logic
-  h += `<h2>How this sheet works</h2><details class="card" open><summary>What SheetPilot understood</summary>
+  h += sec('logic', 'How the sheet works and data checks', `<h2>How this sheet works</h2><details class="card" open><summary>What SheetPilot understood</summary>
     <ul class="logic">
     <li>Each row is labelled by <b>${esc(s.titleCol)}</b>${mc ? `; main number: <b>${esc(mc.name)}</b>` : ''}${P.criteria.length ? `; ${P.criteria.length} scored criteria` : ''}${timeC ? `; timeline: <b>${esc(timeC.name)}</b>` : ''}.</li>
     ${P.dims.length ? `<li>Can be grouped by: ${P.dims.map(esc).join(', ')}.</li>` : ''}
     ${s.columns.filter(c => c.formula).map(c => `<li><b>${esc(c.name)}</b> is calculated in your file by <code>${esc(readableFormula(s, c.formula))}</code></li>`).join('')}
     ${P.rules.filter(r => !s.columns.find(c => c.name === r.col)?.formula).map(r => `<li>${esc(r.text)} <span class="badge ${r.bad.length ? 'amber' : 'green'}">${r.bad.length ? `${r.bad.length} of ${r.checked} rows differ` : `holds in all ${r.checked} rows`}</span>${r.bad.length ? ' ' + r.bad.slice(0, 5).map(id => `<a data-act="open" data-r="${id}">${esc(title(s, s.rows.find(x => x.id === id)))}</a>`).join(', ') : ''}</li>`).join('')}
     </ul>${P.rules.length && !s.columns.some(c => c.formula) && !s.fromXlsx ? '<p class="muted">Formulas are lost when a sheet is exported to CSV, so these rules were inferred from the values. Upload the .xlsx to see the actual formulas.</p>' : ''}
-    ${P.dq.length ? `<b>Data checks</b><ul class="logic">${P.dq.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</details>`;
+    ${P.dq.length ? `<b>Data checks</b><ul class="logic">${P.dq.map(d => `<li>${esc(d)}</li>`).join('')}</ul>` : ''}</details>`);
   return h;
 }
 
@@ -689,6 +715,8 @@ document.addEventListener('click', e => {
     case 'close': ui.drawer = null; renderDrawer(); break;
     case 'fdim': { const c = a.dataset.c, v = a.dataset.v; if (ui.f[c] === v) delete ui.f[c]; else ui.f[c] = v; render(); break; }
     case 'clearf': ui.f = {}; render(); break;
+    case 'theme': { const t = a.dataset.t; if (THEMES.some(x => x.id === t)) { s.theme = t; state.theme = t; save(); render(); } break; }
+    case 'savecopy': { const copy = shared; shared = null; state.sheets.push(copy); state.current = copy.id; ui = freshUI(); history.replaceState(null, '', location.pathname); save(); render(); break; }
     case 'resetroles': delete s.roles; save(); render(); break;
     case 'reviewed': s.reviewed = true; save(); render(); break;
     case 'handled': r.handled ||= {}; r.handled[a.dataset.w] = parseDate(r.cells[a.dataset.w]); r.touched = new Date().toISOString(); save(); render(); break;
@@ -726,12 +754,97 @@ document.addEventListener('change', e => {
 });
 $('#wsSelect').addEventListener('change', e => { state.current = e.target.value; ui = freshUI(); save(); render(); });
 $('#btnDelete').addEventListener('click', () => { const s = sheet(); if (s && confirm(`Delete "${s.name}"? This cannot be undone.`)) { state.sheets = state.sheets.filter(x => x !== s); state.current = state.sheets[0]?.id || null; ui = freshUI(); save(); render(); } });
-$('#btnExport').addEventListener('click', () => {
-  const s = sheet(); if (!s) return;
+/* ---------- export & share ---------- */
+const outDlg = $('#outDlg'), outForm = $('#outForm');
+const TYPES = ['text', 'longtext', 'number', 'money', 'percent', 'date', 'status', 'bool', 'email', 'link'];
+const selectedIds = () => [...outForm.querySelectorAll('input[data-sec]:checked')].map(i => i.value);
+const filterNote = () => { const e = Object.entries(ui.f); return e.length ? `<p class="muted">Filtered by: ${e.map(([k, v]) => `${esc(k)} = ${esc(v)}`).join(', ')}</p>` : ''; };
+
+function exportBody(ids) {
+  const wrap = document.createElement('div');
+  ids.forEach(id => { const el = $(`#main section[data-sec="${id}"]`); if (el) wrap.append(el.cloneNode(true)); });
+  wrap.querySelectorAll('.tools,.review,select,button,.ui-only').forEach(n => n.remove());
+  wrap.querySelectorAll('a[data-act]').forEach(a => { const sp = document.createElement('span'); sp.className = 'lnk'; sp.innerHTML = a.innerHTML; a.replaceWith(sp); });
+  wrap.querySelectorAll('[data-act],[data-c],[data-v],[data-r],[data-tab-go]').forEach(n => ['data-act', 'data-c', 'data-v', 'data-r', 'data-tab-go'].forEach(a => n.removeAttribute(a)));
+  return filterNote() + wrap.innerHTML;
+}
+async function getCSS() {
+  try { return await (await fetch('style.css')).text(); }
+  catch (e) { return [...document.styleSheets].flatMap(ss => { try { return [...ss.cssRules].map(r => r.cssText); } catch (e2) { return []; } }).join('\n'); }
+}
+const standaloneDoc = (name, body, css, theme, autoPrint) => `<!doctype html><html lang="en" data-theme="${esc(theme)}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${esc(name)} · ${esc(BRAND)}</title><style>${css}</style></head><body class="static"><header class="top"><div class="brand"><b>${esc(BRAND)}</b></div><span class="muted">${esc(name)}</span></header><main>${body}</main><footer class="credit">${creditsInner()}</footer>${autoPrint ? '<script>onload=()=>setTimeout(()=>print(),400)<\/script>' : ''}</body></html>`;
+function download(name, text, type) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], { type })); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 2000); }
+const fileSafe = n => n.replace(/[^\w\- ]+/g, '').trim().replace(/\s+/g, '-') || 'dashboard';
+function dataCSV(s) {
   const q = v => /[",\n]/.test(v) ? `"${String(v).replace(/"/g, '""')}"` : v;
-  const csv = [s.columns.map(c => q(c.name)).join(','), ...s.rows.map(r => s.columns.map(c => q(r.cells[c.name] ?? '')).join(','))].join('\n');
-  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `${s.name}.csv`; a.click();
+  return [s.columns.map(c => q(c.name)).join(','), ...filteredRows(s).map(r => s.columns.map(c => q(r.cells[c.name] ?? '')).join(','))].join('\n');
+}
+
+// compact, URL-safe packing (deflate when the browser supports it)
+const b64u = bytes => { let t = ''; for (let i = 0; i < bytes.length; i += 0x8000) t += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(t).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, ''); };
+const unb64u = t => { const bin = atob(t.replace(/-/g, '+').replace(/_/g, '/')); const b = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) b[i] = bin.charCodeAt(i); return b; };
+async function pack(obj) {
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if (window.CompressionStream) return 'z' + b64u(new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer()));
+  return 'r' + b64u(raw);
+}
+async function unpack(tok) {
+  const bytes = unb64u(tok.slice(1));
+  if (tok[0] === 'z') return JSON.parse(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).text());
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+
+function openOut(mode) {
+  const s = sheet(); if (!s) return;
+  ui.tab = 'dash'; render();
+  const secs = [...document.querySelectorAll('#main section[data-sec]')].map(e => ({ id: e.dataset.sec, label: e.dataset.label }));
+  const checks = `<div class="checks">${secs.map(x => `<label><input type="checkbox" data-sec value="${esc(x.id)}" checked> ${esc(x.label)}</label>`).join('')}</div>`;
+  const note = Object.keys(ui.f).length ? ' Your current filters are applied.' : '';
+  outDlg.dataset.mode = mode;
+  outForm.innerHTML = mode === 'export'
+    ? `<h2>Export dashboard</h2><p class="muted">Tick what to include.${note}</p>${checks}
+       <div class="radios"><label><input type="radio" name="fmt" value="html" checked> <span><b>Web page (.html)</b><br><span class="muted">One self-contained file in the chosen style. Opens anywhere, no internet needed.</span></span></label>
+       <label><input type="radio" name="fmt" value="pdf"> <span><b>PDF</b><br><span class="muted">Opens the print dialog; choose “Save as PDF”.</span></span></label>
+       <label><input type="radio" name="fmt" value="csv"> <span><b>Data (.csv)</b><br><span class="muted">The rows currently shown, without charts (the ticks above don't apply).</span></span></label></div>
+       <div class="row"><button type="button" class="primary" id="outGo">Export</button><button value="cancel">Close</button></div><div class="muted" id="outMsg"></div>`
+    : `<h2>Share this dashboard</h2><p class="muted">Tick what to include.${note}</p>${checks}
+       <div class="radios"><label><input type="radio" name="smode" value="snap" checked> <span><b>View-only snapshot</b><br><span class="muted">Contains only the ticked sections. No raw rows are included.</span></span></label>
+       <label><input type="radio" name="smode" value="live"> <span><b>Interactive copy</b><br><span class="muted">Contains every row, so people can filter and explore. Ticks above don't apply.</span></span></label></div>
+       <div class="row"><button type="button" class="primary" id="outGo">Create link</button><button value="cancel">Close</button></div>
+       <div class="linkbox" id="linkBox" hidden><input id="linkOut" readonly><button type="button" id="linkCopy">Copy</button></div>
+       <div class="muted" id="outMsg">There is no server: the link itself carries the data (compressed). Anyone with the link can read it, and chat apps may keep a copy, so don't share confidential sheets this way.</div>`;
+  outDlg.showModal();
+}
+$('#btnOut').addEventListener('click', () => openOut('export'));
+$('#btnShare').addEventListener('click', () => openOut('share'));
+outDlg.addEventListener('click', async e => {
+  const s = sheet(), msg = $('#outMsg');
+  if (e.target.id === 'linkCopy') { try { await navigator.clipboard.writeText($('#linkOut').value); msg.textContent = 'Link copied.'; } catch (x) { $('#linkOut').select(); msg.textContent = 'Press Ctrl/Cmd+C to copy.'; } return; }
+  if (e.target.id !== 'outGo') return;
+  const ids = selectedIds(), name = s.name, theme = curTheme();
+  try {
+    if (outDlg.dataset.mode === 'export') {
+      const fmt = outForm.querySelector('input[name=fmt]:checked').value;
+      if (fmt === 'csv') { download(`${fileSafe(name)}.csv`, dataCSV(s), 'text/csv'); msg.textContent = 'Downloaded.'; return; }
+      if (!ids.length) { msg.textContent = 'Tick at least one section.'; return; }
+      const doc = standaloneDoc(name, exportBody(ids), await getCSS(), theme, fmt === 'pdf');
+      if (fmt === 'html') { download(`${fileSafe(name)}-dashboard.html`, doc, 'text/html'); msg.textContent = 'Downloaded.'; }
+      else { const w = window.open('', '_blank'); if (!w) { msg.textContent = 'Your browser blocked the new window; allow pop-ups and try again.'; return; } w.document.write(doc); w.document.close(); msg.textContent = 'Print dialog opened in a new tab.'; }
+    } else {
+      const live = outForm.querySelector('input[name=smode]:checked').value === 'live';
+      if (!live && !ids.length) { msg.textContent = 'Tick at least one section.'; return; }
+      const payload = live
+        ? { v: 1, k: 'sheet', t: theme, s: { name, columns: s.columns.map(({ name, type, order, desc, formula }) => ({ name, type, order, desc, formula })), rows: s.rows.map(r => s.columns.map(c => r.cells[c.name] ?? '')), titleCol: s.titleCol, statusCol: s.statusCol, doneStatuses: s.doneStatuses, roles: s.roles || {}, fromXlsx: !!s.fromXlsx } }
+        : { v: 1, k: 'snap', t: theme, n: name, h: exportBody(ids) };
+      const url = `${location.origin}${location.pathname}#share=${await pack(payload)}`, kb = Math.round(url.length / 1024);
+      if (url.length > 600000) { msg.textContent = `This link would be ${kb} KB, too long to share reliably. Use Export (web page) instead, or share a snapshot.`; return; }
+      $('#linkBox').hidden = false; $('#linkOut').value = url; $('#linkOut').select();
+      msg.textContent = `Link created (${kb} KB). ${kb > 30 ? 'Long links can be cut off by some chat apps; if so, send the exported web page instead. ' : ''}Anyone with it can read the ${live ? 'full data' : 'snapshot'}.`;
+    }
+  } catch (err) { msg.textContent = 'Something went wrong: ' + err.message; }
 });
+
+
 
 /* ---------- import ---------- */
 const dlg = $('#importDlg');
@@ -798,5 +911,39 @@ dlg.addEventListener('click', e => {
   if (addSheet(k === 'customers' ? 'Sample customers' : 'Sample salaries', parseTable(SAMPLES[k]()))) { ui = freshUI(); save(); render(); dlg.close(); }
 });
 
-render();
+// opening a share link
+function sheetFromPayload(p) {
+  const d = p.s; if (!d || !Array.isArray(d.columns) || !Array.isArray(d.rows)) throw new Error('This link is damaged.');
+  const cols = d.columns.slice(0, 200).map(c => ({ name: String(c.name).slice(0, 120), type: TYPES.includes(c.type) ? c.type : 'text', order: c.order === 'dmy' || c.order === 'mdy' ? c.order : undefined, desc: String(c.desc || '').slice(0, 400), formula: String(c.formula || '').slice(0, 400) }));
+  const now = new Date().toISOString(), str = v => String(v ?? '').slice(0, 200);
+  const roles = {}; ['measure', 'agg', 'polarity', 'dim', 'time'].forEach(k => { if (d.roles && typeof d.roles[k] === 'string') roles[k] = d.roles[k].slice(0, 120); });
+  return { id: uid(), name: str(d.name) || 'Shared dashboard', columns: cols, rows: d.rows.slice(0, 50000).map(a => ({ id: uid(), touched: now, notes: [], handled: {}, cells: Object.fromEntries(cols.map((c, i) => [c.name, String(a[i] ?? '')])) })),
+    titleCol: cols.some(c => c.name === d.titleCol) ? d.titleCol : cols[0]?.name || '', statusCol: cols.some(c => c.name === d.statusCol) ? d.statusCol : '', doneStatuses: str(d.doneStatuses), lastCol: '', staleDays: 0, watches: [], fOff: 0,
+    roles, theme: THEMES.some(t => t.id === p.t) ? p.t : 'clean', reviewed: true, note: '', fromXlsx: !!d.fromXlsx };
+}
+async function boot() {
+  const m = location.hash.match(/^#share=([\w-]+)$/);
+  if (!m) { render(); return; }
+  try {
+    const p = await unpack(m[1]);
+    if (!p || p.v !== 1) throw new Error('unsupported link');
+    if (p.k === 'sheet') { shared = sheetFromPayload(p); ui = freshUI(); render(); return; }
+    if (p.k === 'snap' && typeof p.h === 'string') {
+      const theme = THEMES.some(t => t.id === p.t) ? p.t : 'clean';
+      document.documentElement.dataset.theme = theme; document.title = `${String(p.n).slice(0, 100)} · ${BRAND}`;
+      document.body.classList.add('snapview'); $('#credit').hidden = true;
+      $('.brand').innerHTML = `<b>${esc(BRAND)}</b>`;
+      $('#sharebar').innerHTML = `<div class="sharebar"><b>Shared dashboard</b><span class="muted">View-only snapshot of “${esc(String(p.n).slice(0, 100))}”.</span><a href="${esc(location.pathname)}">Make your own dashboard</a></div>`;
+      // the snapshot HTML comes from the link, so it is shown in a sandbox without scripts
+      const v = $('#viewer'); v.hidden = false;
+      v.innerHTML = '<iframe sandbox="allow-popups allow-popups-to-escape-sandbox" title="Shared dashboard"></iframe>';
+      v.firstChild.srcdoc = standaloneDoc(String(p.n).slice(0, 100), p.h, await getCSS(), theme, false).replace('<body class="static">', '<body class="static"><base target="_blank">');
+      return;
+    }
+    throw new Error('unsupported link');
+  } catch (err) {
+    render(); $('#main').insertAdjacentHTML('afterbegin', `<div class="card">That share link could not be opened (${esc(err.message)}). Ask for a new one, or <a href="${esc(location.pathname)}">start your own dashboard</a>.</div>`);
+  }
+}
+boot();
 })();
