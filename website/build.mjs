@@ -30,6 +30,7 @@ const PROJECTS = [
 	{ name: 'Helpdesk Hero', url: 'https://george-stathopoulos.github.io/helpdesk-hero/', text: 'WordPress support with diagnostics and password-free access' },
 	{ name: 'Fixpass', url: 'https://george-stathopoulos.github.io/fixpass/', text: 'Spotlight the problem and give support safe, temporary access' },
 	{ name: 'SheetPilot', url: 'https://george-stathopoulos.github.io/sheetpilot/', text: 'Turn any spreadsheet into an interactive dashboard, in your browser' },
+	{ name: 'Duenest', url: 'https://george-stathopoulos.github.io/duenest/', text: 'Bills and subscriptions, calmly in one place. English and Greek' },
 ];
 
 const ROOT = process.cwd();
