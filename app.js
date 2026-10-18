@@ -15,7 +15,7 @@ let shared = null; // a dashboard opened from a share link (kept in memory only)
 const sheet = () => shared || state.sheets.find(s => s.id === state.current);
 const BRAND = 'SheetPilot';
 const HOME = 'https://george-stathopoulos.github.io/';
-const PROJECTS = [['Gatehouse', HOME + 'gatehouse/'], ['Helpdesk Hero', HOME + 'helpdesk-hero/'], ['Fixpass', HOME + 'fixpass/'], ['Expenity', 'https://expenity.github.io/expenity/']];
+const PROJECTS = [['Gatehouse', HOME + 'gatehouse/'], ['Helpdesk Hero', HOME + 'helpdesk-hero/'], ['Fixpass', HOME + 'fixpass/'], ['FixPin', HOME + 'fixpin/'], ['Expenity', 'https://expenity.github.io/expenity/']];
 const THEMES = [
   { id: 'executive', g: 'Professional', name: 'Executive', hint: 'Clean white cards, soft shadows, green accent. The default for any team' },
   { id: 'graphite', g: 'Professional', name: 'Graphite', hint: 'Neutral greys and fine lines. Formal reports, prints well' },
