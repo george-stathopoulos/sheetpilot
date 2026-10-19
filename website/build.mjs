@@ -205,6 +205,7 @@ ${ body }
 	</div>
 </footer>
 <script src="${ root }assets/site.js?v=${ ASSET_V }" defer></script>
+<script src="${ root }assets/share-heart.js?v=${ ASSET_V }" data-site="sheetpilot" data-url="${ SITE.url }" data-msg="Spreadsheets deserve a pilot. Share the cockpit." defer></script>
 ${ home ? `<script src="${ root }assets/home.js?v=${ ASSET_V }" defer></script>` : '' }
 </body>
 </html>
