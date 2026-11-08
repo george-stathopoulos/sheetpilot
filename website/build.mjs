@@ -30,6 +30,7 @@ const PROJECTS = [
 	{ name: 'Helpdesk Hero', url: 'https://george-stathopoulos.github.io/helpdesk-hero/', text: 'WordPress support with diagnostics and password-free access' },
 	{ name: 'Fixpass', url: 'https://george-stathopoulos.github.io/fixpass/', text: 'Spotlight the problem and give support safe, temporary access' },
 	{ name: 'FixPin', url: 'https://george-stathopoulos.github.io/fixpin/', text: 'Point at what is broken on any website and share a private link' },
+	{ name: 'Docs Gap Finder', url: 'https://george-stathopoulos.github.io/docs-gap-finder/', text: 'Find the questions your documentation does not answer yet, ticket by ticket' },
 	{ name: 'SheetPilot', url: 'https://george-stathopoulos.github.io/sheetpilot/', text: 'Turn any spreadsheet into an interactive dashboard, in your browser' },
 	{ name: 'Expenity', url: 'https://expenity.github.io/expenity/', text: 'Know where your money goes. English and Greek' },
 ];
